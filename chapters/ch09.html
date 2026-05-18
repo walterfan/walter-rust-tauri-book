@@ -1,0 +1,1840 @@
+
+<!DOCTYPE html>
+
+
+<html lang="zh-CN" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>第九章 Rust 实战小项目：CLI 聊天室 &#8212; Tauri + Rust 客户端架构</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../_static/documentation_options.js?v=327b96ba"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=f281be69"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script src="../_static/translations.js?v=beaddf03"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.esm.min.mjs"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.2.0/dist/mermaid-layout-elk.esm.min.mjs"></script>
+    <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.esm.min.mjs";import elkLayouts from "https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.2.0/dist/mermaid-layout-elk.esm.min.mjs";mermaid.registerLayoutLoaders(elkLayouts);mermaid.initialize({startOnLoad:false});</script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+    <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.esm.min.mjs";
+
+const defaultStyle = document.createElement('style');
+defaultStyle.textContent = `pre.mermaid {
+    /* Same as .mermaid-container > pre */
+    display: block;
+    width: 100%;
+}
+
+pre.mermaid > svg {
+    /* Same as .mermaid-container > pre > svg */
+    height: 500px;
+    width: 100%;
+    max-width: 100% !important;
+}
+`;
+document.head.appendChild(defaultStyle);
+
+const fullscreenStyle = document.createElement('style');
+fullscreenStyle.textContent = `.mermaid-container {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+}
+
+.mermaid-container > pre {
+    display: block;
+    width: 100%;
+}
+
+.mermaid-container > pre > svg {
+    height: 500px;
+    width: 100%;
+    max-width: 100% !important;
+}
+
+.mermaid-fullscreen-btn {
+    width: 28px;
+    height: 28px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    font-size: 14px;
+    line-height: 1;
+    padding: 0;
+    color: #333;
+}
+
+.mermaid-fullscreen-btn:hover {
+    opacity: 100% !important;
+    background: rgba(255, 255, 255, 1);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+    transform: scale(1.1);
+}
+
+.mermaid-fullscreen-btn.dark-theme {
+    background: rgba(50, 50, 50, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #e0e0e0;
+}
+
+.mermaid-fullscreen-btn.dark-theme:hover {
+    background: rgba(60, 60, 60, 1);
+    box-shadow: 0 3px 10px rgba(255, 255, 255, 0.2);
+}
+
+.mermaid-fullscreen-modal {
+    display: none;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 95vw;
+    height: 100vh;
+    background: rgba(255, 255, 255, 0.98);
+    z-index: 9999;
+    padding: 20px;
+    overflow: auto;
+}
+
+.mermaid-fullscreen-modal.dark-theme {
+    background: rgba(0, 0, 0, 0.98);
+}
+
+.mermaid-fullscreen-modal.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen {
+    position: relative;
+    width: 95vw;
+    height: 90vh;
+    max-width: 95vw;
+    max-height: 90vh;
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen.dark-theme {
+    background: #1a1a1a;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+}
+
+.mermaid-container-fullscreen pre.mermaid {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen .mermaid svg {
+    height: 100% !important;
+    width: 100% !important;
+    cursor: grab;
+}
+
+.mermaid-fullscreen-close {
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s;
+    font-size: 24px;
+    line-height: 1;
+    color: #333;
+}
+
+.mermaid-fullscreen-close:hover {
+    background: white;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+    transform: scale(1.1);
+}
+
+.mermaid-fullscreen-close.dark-theme {
+    background: rgba(50, 50, 50, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #e0e0e0;
+}
+
+.mermaid-fullscreen-close.dark-theme:hover {
+    background: rgba(60, 60, 60, 1);
+    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);
+}
+
+.mermaid-fullscreen-modal .mermaid-fullscreen-btn {
+    display: none !important;
+}`;
+document.head.appendChild(fullscreenStyle);
+
+// Detect if page has dark background
+const isDarkTheme = () => {
+    const bgColor = window.getComputedStyle(document.body).backgroundColor;
+    const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        return brightness < 128;
+    }
+    return false;
+};
+
+const load = async () => {
+    await mermaid.run();
+
+    const all_mermaids = document.querySelectorAll(".mermaid");
+    const mermaids_processed = document.querySelectorAll(".mermaid[data-processed='true']");
+
+    if ("False" === "True") {
+        const mermaids_to_add_zoom = -1 === -1 ? all_mermaids.length : -1;
+        if(mermaids_to_add_zoom > 0) {
+            var svgs = d3.selectAll("");
+            if(all_mermaids.length !== mermaids_processed.length) {
+                setTimeout(load, 200);
+                return;
+            } else if(svgs.size() !== mermaids_to_add_zoom) {
+                setTimeout(load, 200);
+                return;
+            } else {
+                svgs.each(function() {
+                    var svg = d3.select(this);
+                    svg.html("<g class='wrapper'>" + svg.html() + "</g>");
+                    var inner = svg.select("g");
+                    var zoom = d3.zoom().on("zoom", function(event) {
+                        inner.attr("transform", event.transform);
+                    });
+                    svg.call(zoom);
+                });
+            }
+        }
+    } else if(all_mermaids.length !== mermaids_processed.length) {
+        // Wait for mermaid to process all diagrams
+        setTimeout(load, 200);
+        return;
+    }
+
+    const darkTheme = isDarkTheme();
+
+    // Stop here if not adding fullscreen capability
+    if ("True" !== "True") return;
+
+    const modal = document.createElement('div');
+    modal.className = 'mermaid-fullscreen-modal' + (darkTheme ? ' dark-theme' : '');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Fullscreen diagram viewer');
+    modal.innerHTML = `
+        <button class="mermaid-fullscreen-close${darkTheme ? ' dark-theme' : ''}" aria-label="Close fullscreen">✕</button>
+        <div class="mermaid-container-fullscreen${darkTheme ? ' dark-theme' : ''}"></div>
+    `;
+    document.body.appendChild(modal);
+
+    const modalContent = modal.querySelector('.mermaid-container-fullscreen');
+    const closeBtn = modal.querySelector('.mermaid-fullscreen-close');
+
+    let previousScrollOffset = [window.scrollX, window.scrollY];
+
+    const closeModal = () => {
+        modal.classList.remove('active');
+        modalContent.innerHTML = '';
+        document.body.style.overflow = ''
+        window.scrollTo({left: previousScrollOffset[0], top: previousScrollOffset[1], behavior: 'instant'});
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('active')) {
+            closeModal();
+        }
+    });
+
+    const allButtons = [];
+
+    document.querySelectorAll('.mermaid').forEach((mermaidDiv) => {
+        if (mermaidDiv.parentNode.classList.contains('mermaid-container') ||
+            mermaidDiv.closest('.mermaid-fullscreen-modal')) {
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+        mermaidDiv.parentNode.insertBefore(container, mermaidDiv);
+        container.appendChild(mermaidDiv);
+
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+        fullscreenBtn.setAttribute('aria-label', 'View diagram in fullscreen');
+        fullscreenBtn.textContent = '⛶';
+        fullscreenBtn.style.opacity = '50%';
+
+        // Calculate dynamic position based on diagram's margin and padding
+        const diagramStyle = window.getComputedStyle(mermaidDiv);
+        const marginTop = parseFloat(diagramStyle.marginTop) || 0;
+        const marginRight = parseFloat(diagramStyle.marginRight) || 0;
+        const paddingTop = parseFloat(diagramStyle.paddingTop) || 0;
+        const paddingRight = parseFloat(diagramStyle.paddingRight) || 0;
+        fullscreenBtn.style.top = `${marginTop + paddingTop + 4}px`;
+        fullscreenBtn.style.right = `${marginRight + paddingRight + 4}px`;
+
+        fullscreenBtn.addEventListener('click', () => {
+            previousScrollOffset = [window.scroll, window.scrollY];
+            const clone = mermaidDiv.cloneNode(true);
+            modalContent.innerHTML = '';
+            modalContent.appendChild(clone);
+
+            const svg = clone.querySelector('svg');
+            if (svg) {
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+                svg.style.width = '100%';
+                svg.style.height = 'auto';
+                svg.style.maxWidth = '100%';
+                svg.style.sdisplay = 'block';
+
+                if ("False" === "True") {
+                    setTimeout(() => {
+                        const g = svg.querySelector('g');
+                        if (g) {
+                            var svgD3 = d3.select(svg);
+                            svgD3.html("<g class='wrapper'>" + svgD3.html() + "</g>");
+                            var inner = svgD3.select("g");
+                            var zoom = d3.zoom().on("zoom", function(event) {
+                                inner.attr("transform", event.transform);
+                            });
+                            svgD3.call(zoom);
+                        }
+                    }, 100);
+                }
+            }
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+
+        container.appendChild(fullscreenBtn);
+        allButtons.push(fullscreenBtn);
+    });
+
+    // Update theme classes when theme changes
+    const updateTheme = () => {
+        const dark = isDarkTheme();
+        allButtons.forEach(btn => {
+            if (dark) {
+                btn.classList.add('dark-theme');
+            } else {
+                btn.classList.remove('dark-theme');
+            }
+        });
+        if (dark) {
+            modal.classList.add('dark-theme');
+            modalContent.classList.add('dark-theme');
+            closeBtn.classList.add('dark-theme');
+        } else {
+            modal.classList.remove('dark-theme');
+            modalContent.classList.remove('dark-theme');
+            closeBtn.classList.remove('dark-theme');
+        }
+    };
+
+    // Watch for theme changes
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+    observer.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class', 'style']
+    });
+};
+
+window.addEventListener("load", load);
+</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'chapters/ch09';</script>
+    <link rel="index" title="索引" href="../genindex.html" />
+    <link rel="search" title="搜索" href="../search.html" />
+    <link rel="next" title="第十章 Tauri 架构全景" href="ch10.html" />
+    <link rel="prev" title="第八章 异步编程：从线程到 async/await" href="ch08.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="zh-CN"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">跳转至主要内容</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>回到顶部</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="版本警告"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">Tauri + Rust 客户端架构</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="搜索" aria-label="搜索" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">搜索</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 0 · 开场</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="ch01.html">第一章 客户端架构的前世今生</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch02.html">第二章 五分钟跑起第一个 Tauri 应用</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 1 · Rust 速成</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="ch03.html">第三章 Rust 基础语法速览</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch04.html">第四章 所有权系统：Rust 的灵魂</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch05.html">第五章 结构体、枚举与模块系统</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch06.html">第六章 Trait 与泛型：Rust 的多态</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch07.html">第七章 错误处理的艺术</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch08.html">第八章 异步编程：从线程到 async/await</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">第九章 Rust 实战小项目：CLI 聊天室</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 2 · Tauri 深度</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="ch10.html">第十章 Tauri 架构全景</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch11.html">第十一章 前后端通信：IPC 深度解析</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch12.html">第十二章 前端集成：选择你的武器</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch13.html">第十三章 数据持久化：从文件到 SQLite</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch14.html">第十四章 网络与 API 调用</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch15.html">第十五章 实时通信：WebSocket 与群聊</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch16.html">第十六章 原生能力：托盘、通知、快捷键、剪贴板</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch17.html">第十七章 安全加固</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 3 · 高级实践</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="ch18.html">第十八章 插件开发</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch19.html">第十九章 测试策略</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch20.html">第二十章 性能优化</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch21.html">第二十一章 多平台打包与发布</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch22.html">第二十二章 架构模式与最佳实践</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 4 · 结语与参考</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="ch23.html">第二十三章 未来展望</a></li>
+<li class="toctree-l1"><a class="reference internal" href="appendix-a.html">附录 A Rust 速查表</a></li>
+<li class="toctree-l1"><a class="reference internal" href="appendix-b.html">附录 B Tauri CLI 参考</a></li>
+<li class="toctree-l1"><a class="reference internal" href="appendix-c.html">附录 C 推荐资源</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+<a href="https://github.com/walterfan/walter-rust-tauri-book" target="_blank"
+   class="btn btn-sm btn-source-repository-button"
+   title="源码库"
+   data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+
+</a>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="下载此页面">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/chapters/ch09.md" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="下载源文件"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="列印成 PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="全屏模式"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="亮色"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="暗色"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="搜索" aria-label="搜索" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>第九章 Rust 实战小项目：CLI 聊天室</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> 目录 </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id1">9.1 项目规划</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id2">9.1.1 功能需求</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id3">9.1.2 技术选型</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id4">9.1.3 项目结构</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id5">9.1.4 知识点覆盖</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id6">9.2 消息协议</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#protocol-rs">9.2.1 protocol.rs</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id7">9.3 聊天服务器</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#server-rs">9.3.1 server.rs</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id8">9.4 聊天客户端</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#client-rs">9.4.1 client.rs</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id9">9.5 主入口</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#main-rs">9.5.1 main.rs</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cargo-toml">9.5.2 Cargo.toml</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id10">9.6 运行与测试</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id11">9.6.1 启动服务器</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id12">9.6.2 启动客户端（开多个终端）</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id13">9.6.3 完整对话示例</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id14">9.7 架构回顾</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id15">9.7.1 每个连接的生命周期</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id16">9.8 知识点总结与映射</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id17">9.9 扩展挑战</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id18">挑战 1：私聊功能</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id19">挑战 2：聊天记录持久化</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#json">挑战 3：JSON 协议</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id20">挑战 4：心跳检测</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id21">9.10 本章小结</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="rust-cli">
+<h1>第九章 Rust 实战小项目：CLI 聊天室<a class="headerlink" href="#rust-cli" title="Link to this heading">#</a></h1>
+<blockquote>
+<div><p><em>&quot;The best way to learn is by doing.&quot; — Richard Branson</em></p>
+</div></blockquote>
+<p>前八章我们学习了 Rust 的核心概念：所有权与借用、结构体与枚举、模式匹配、Trait 与泛型、错误处理、异步编程。现在是时候把它们融会贯通了。</p>
+<p>本章我们将从零构建一个<strong>终端聊天室</strong>——一个 TCP 服务器和客户端，支持多人同时在线聊天。这个项目虽然不大，但几乎涉及了前八章的所有知识点。</p>
+<pre  class="mermaid">
+        mindmap
+  root((CLI 聊天室))
+    需求
+      多人聊天
+      昵称
+      在线列表
+    服务端
+      TCP listener
+      session 管理
+      广播
+    客户端
+      输入循环
+      消息接收
+      优雅退出
+    练习价值
+      所有权
+      错误处理
+      async
+    </pre><hr class="docutils" />
+<section id="id1">
+<h2>9.1 项目规划<a class="headerlink" href="#id1" title="Link to this heading">#</a></h2>
+<section id="id2">
+<h3>9.1.1 功能需求<a class="headerlink" href="#id2" title="Link to this heading">#</a></h3>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>功能</p></th>
+<th class="head"><p>描述</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>多人聊天</p></td>
+<td><p>多个客户端同时连接，消息广播给所有人</p></td>
+</tr>
+<tr class="row-odd"><td><p>用户昵称</p></td>
+<td><p>连接时设置昵称，消息带昵称前缀</p></td>
+</tr>
+<tr class="row-even"><td><p>系统通知</p></td>
+<td><p>用户加入/离开时通知所有人</p></td>
+</tr>
+<tr class="row-odd"><td><p>优雅退出</p></td>
+<td><p>客户端输入 <code class="docutils literal notranslate"><span class="pre">/quit</span></code> 断开连接</p></td>
+</tr>
+<tr class="row-even"><td><p>在线列表</p></td>
+<td><p>客户端输入 <code class="docutils literal notranslate"><span class="pre">/list</span></code> 查看在线用户</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id3">
+<h3>9.1.2 技术选型<a class="headerlink" href="#id3" title="Link to this heading">#</a></h3>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>组件</p></th>
+<th class="head"><p>选择</p></th>
+<th class="head"><p>理由</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>异步运行时</p></td>
+<td><p>Tokio</p></td>
+<td><p>成熟、高性能、生态丰富</p></td>
+</tr>
+<tr class="row-odd"><td><p>网络协议</p></td>
+<td><p>TCP</p></td>
+<td><p>简单可靠，适合入门</p></td>
+</tr>
+<tr class="row-even"><td><p>消息格式</p></td>
+<td><p>行分隔的文本</p></td>
+<td><p>简单直观</p></td>
+</tr>
+<tr class="row-odd"><td><p>广播机制</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">tokio::sync::broadcast</span></code></p></td>
+<td><p>多生产者多消费者</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id4">
+<h3>9.1.3 项目结构<a class="headerlink" href="#id4" title="Link to this heading">#</a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>chat-room/
+├── Cargo.toml
+└── src/
+    ├── main.rs        # 入口：根据参数启动 server 或 client
+    ├── server.rs      # 聊天服务器
+    ├── client.rs      # 聊天客户端
+    └── protocol.rs    # 消息协议定义
+</pre></div>
+</div>
+</section>
+<section id="id5">
+<h3>9.1.4 知识点覆盖<a class="headerlink" href="#id5" title="Link to this heading">#</a></h3>
+<pre  class="mermaid">
+        graph TD
+    P[CLI 聊天室项目] --&gt; O[所有权与借用&lt;br&gt;ch03-04]
+    P --&gt; S[结构体与枚举&lt;br&gt;ch05]
+    P --&gt; T[Trait 与泛型&lt;br&gt;ch06]
+    P --&gt; E[错误处理&lt;br&gt;ch07]
+    P --&gt; A[异步编程&lt;br&gt;ch08]
+    O --&gt; O1[&quot;move 闭包&lt;br&gt;Arc 共享&quot;]
+    S --&gt; S1[&quot;Message 枚举&lt;br&gt;ChatRoom 结构体&quot;]
+    T --&gt; T1[&quot;Display trait&lt;br&gt;From trait&quot;]
+    E --&gt; E1[&quot;Result + ?&lt;br&gt;anyhow&quot;]
+    A --&gt; A1[&quot;async/await&lt;br&gt;tokio::spawn&lt;br&gt;broadcast channel&quot;]
+    style P fill:#f9f,stroke:#333
+    </pre></section>
+</section>
+<hr class="docutils" />
+<section id="id6">
+<h2>9.2 消息协议<a class="headerlink" href="#id6" title="Link to this heading">#</a></h2>
+<p>首先定义客户端和服务器之间的消息格式。</p>
+<section id="protocol-rs">
+<h3>9.2.1 protocol.rs<a class="headerlink" href="#protocol-rs" title="Link to this heading">#</a></h3>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// src/protocol.rs</span>
+<span class="k">use</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">fmt</span><span class="p">;</span>
+
+<span class="sd">/// 聊天室中的消息类型</span>
+<span class="cp">#[derive(Debug, Clone)]</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">Message</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="sd">/// 用户加入聊天室</span>
+<span class="w">    </span><span class="n">Join</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">username</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="sd">/// 用户离开聊天室</span>
+<span class="w">    </span><span class="n">Leave</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">username</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="sd">/// 普通聊天消息</span>
+<span class="w">    </span><span class="n">Chat</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">username</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">,</span><span class="w"> </span><span class="n">content</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="w"> </span><span class="p">},</span>
+<span class="w">    </span><span class="sd">/// 系统消息</span>
+<span class="w">    </span><span class="n">System</span><span class="p">(</span><span class="nb">String</span><span class="p">),</span>
+<span class="w">    </span><span class="sd">/// 在线用户列表</span>
+<span class="w">    </span><span class="n">UserList</span><span class="p">(</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="p">),</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">Message</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="sd">/// 将消息序列化为一行文本（用于网络传输）</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">encode</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">String</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="bp">self</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">Message</span><span class="p">::</span><span class="n">Join</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">username</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="fm">format!</span><span class="p">(</span><span class="s">&quot;/join {}</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">username</span><span class="p">),</span>
+<span class="w">            </span><span class="n">Message</span><span class="p">::</span><span class="n">Leave</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">username</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="fm">format!</span><span class="p">(</span><span class="s">&quot;/leave {}</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">username</span><span class="p">),</span>
+<span class="w">            </span><span class="n">Message</span><span class="p">::</span><span class="n">Chat</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">username</span><span class="p">,</span><span class="w"> </span><span class="n">content</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="fm">format!</span><span class="p">(</span><span class="s">&quot;/chat {} {}</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">username</span><span class="p">,</span><span class="w"> </span><span class="n">content</span><span class="p">),</span>
+<span class="w">            </span><span class="n">Message</span><span class="p">::</span><span class="n">System</span><span class="p">(</span><span class="n">text</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="fm">format!</span><span class="p">(</span><span class="s">&quot;/system {}</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">text</span><span class="p">),</span>
+<span class="w">            </span><span class="n">Message</span><span class="p">::</span><span class="n">UserList</span><span class="p">(</span><span class="n">users</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="fm">format!</span><span class="p">(</span><span class="s">&quot;/users {}</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">users</span><span class="p">.</span><span class="n">join</span><span class="p">(</span><span class="s">&quot;,&quot;</span><span class="p">)),</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="sd">/// 从一行文本解析消息</span>
+<span class="w">    </span><span class="k">pub</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">decode</span><span class="p">(</span><span class="n">line</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="bp">Self</span><span class="p">,</span><span class="w"> </span><span class="n">ProtocolError</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">line</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">line</span><span class="p">.</span><span class="n">trim</span><span class="p">();</span>
+
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">rest</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">line</span><span class="p">.</span><span class="n">strip_prefix</span><span class="p">(</span><span class="s">&quot;/join &quot;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nb">Ok</span><span class="p">(</span><span class="n">Message</span><span class="p">::</span><span class="n">Join</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">username</span><span class="p">:</span><span class="w"> </span><span class="nc">rest</span><span class="p">.</span><span class="n">to_string</span><span class="p">(),</span>
+<span class="w">            </span><span class="p">})</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">rest</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">line</span><span class="p">.</span><span class="n">strip_prefix</span><span class="p">(</span><span class="s">&quot;/leave &quot;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nb">Ok</span><span class="p">(</span><span class="n">Message</span><span class="p">::</span><span class="n">Leave</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">username</span><span class="p">:</span><span class="w"> </span><span class="nc">rest</span><span class="p">.</span><span class="n">to_string</span><span class="p">(),</span>
+<span class="w">            </span><span class="p">})</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">rest</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">line</span><span class="p">.</span><span class="n">strip_prefix</span><span class="p">(</span><span class="s">&quot;/chat &quot;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="c1">// 格式：/chat username content...</span>
+<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">username</span><span class="p">,</span><span class="w"> </span><span class="n">content</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">rest</span>
+<span class="w">                </span><span class="p">.</span><span class="n">split_once</span><span class="p">(</span><span class="sc">&#39; &#39;</span><span class="p">)</span>
+<span class="w">                </span><span class="p">.</span><span class="n">ok_or</span><span class="p">(</span><span class="n">ProtocolError</span><span class="p">::</span><span class="n">MalformedMessage</span><span class="p">)</span><span class="o">?</span><span class="p">;</span>
+<span class="w">            </span><span class="nb">Ok</span><span class="p">(</span><span class="n">Message</span><span class="p">::</span><span class="n">Chat</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">username</span><span class="p">:</span><span class="w"> </span><span class="nc">username</span><span class="p">.</span><span class="n">to_string</span><span class="p">(),</span>
+<span class="w">                </span><span class="n">content</span><span class="p">:</span><span class="w"> </span><span class="nc">content</span><span class="p">.</span><span class="n">to_string</span><span class="p">(),</span>
+<span class="w">            </span><span class="p">})</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">rest</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">line</span><span class="p">.</span><span class="n">strip_prefix</span><span class="p">(</span><span class="s">&quot;/system &quot;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nb">Ok</span><span class="p">(</span><span class="n">Message</span><span class="p">::</span><span class="n">System</span><span class="p">(</span><span class="n">rest</span><span class="p">.</span><span class="n">to_string</span><span class="p">()))</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Some</span><span class="p">(</span><span class="n">rest</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">line</span><span class="p">.</span><span class="n">strip_prefix</span><span class="p">(</span><span class="s">&quot;/users &quot;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">users</span><span class="p">:</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">rest</span><span class="p">.</span><span class="n">split</span><span class="p">(</span><span class="sc">&#39;,&#39;</span><span class="p">).</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="n">s</span><span class="o">|</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">to_string</span><span class="p">()).</span><span class="n">collect</span><span class="p">();</span>
+<span class="w">            </span><span class="nb">Ok</span><span class="p">(</span><span class="n">Message</span><span class="p">::</span><span class="n">UserList</span><span class="p">(</span><span class="n">users</span><span class="p">))</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nb">Err</span><span class="p">(</span><span class="n">ProtocolError</span><span class="p">::</span><span class="n">UnknownCommand</span><span class="p">)</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="sd">/// 实现 Display trait —— 用于终端显示（ch06 知识）</span>
+<span class="k">impl</span><span class="w"> </span><span class="n">fmt</span><span class="p">::</span><span class="n">Display</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">Message</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">fmt</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">f</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="n">fmt</span><span class="p">::</span><span class="n">Formatter</span><span class="o">&lt;&#39;</span><span class="nb">_</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nc">fmt</span><span class="p">::</span><span class="nb">Result</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="bp">self</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">Message</span><span class="p">::</span><span class="n">Join</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">username</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="fm">write!</span><span class="p">(</span><span class="n">f</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;📥 {} joined the chat&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">username</span><span class="p">)</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="n">Message</span><span class="p">::</span><span class="n">Leave</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">username</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="fm">write!</span><span class="p">(</span><span class="n">f</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;📤 {} left the chat&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">username</span><span class="p">)</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="n">Message</span><span class="p">::</span><span class="n">Chat</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">username</span><span class="p">,</span><span class="w"> </span><span class="n">content</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="fm">write!</span><span class="p">(</span><span class="n">f</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;💬 {}: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">username</span><span class="p">,</span><span class="w"> </span><span class="n">content</span><span class="p">)</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="n">Message</span><span class="p">::</span><span class="n">System</span><span class="p">(</span><span class="n">text</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="fm">write!</span><span class="p">(</span><span class="n">f</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;⚙️  {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">text</span><span class="p">)</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="n">Message</span><span class="p">::</span><span class="n">UserList</span><span class="p">(</span><span class="n">users</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="fm">write!</span><span class="p">(</span><span class="n">f</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;👥 Online ({}): {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">users</span><span class="p">.</span><span class="n">len</span><span class="p">(),</span><span class="w"> </span><span class="n">users</span><span class="p">.</span><span class="n">join</span><span class="p">(</span><span class="s">&quot;, &quot;</span><span class="p">))</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="sd">/// 协议错误类型（ch07 知识：自定义错误）</span>
+<span class="cp">#[derive(Debug)]</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">enum</span><span class="w"> </span><span class="nc">ProtocolError</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">MalformedMessage</span><span class="p">,</span>
+<span class="w">    </span><span class="n">UnknownCommand</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">fmt</span><span class="p">::</span><span class="n">Display</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">ProtocolError</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">fmt</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">f</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="n">fmt</span><span class="p">::</span><span class="n">Formatter</span><span class="o">&lt;&#39;</span><span class="nb">_</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nc">fmt</span><span class="p">::</span><span class="nb">Result</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="bp">self</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">ProtocolError</span><span class="p">::</span><span class="n">MalformedMessage</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="fm">write!</span><span class="p">(</span><span class="n">f</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;Malformed message&quot;</span><span class="p">),</span>
+<span class="w">            </span><span class="n">ProtocolError</span><span class="p">::</span><span class="n">UnknownCommand</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="fm">write!</span><span class="p">(</span><span class="n">f</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;Unknown command&quot;</span><span class="p">),</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">error</span><span class="p">::</span><span class="n">Error</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">ProtocolError</span><span class="w"> </span><span class="p">{}</span>
+
+<span class="cp">#[cfg(test)]</span>
+<span class="k">mod</span><span class="w"> </span><span class="nn">tests</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">use</span><span class="w"> </span><span class="k">super</span><span class="p">::</span><span class="o">*</span><span class="p">;</span>
+
+<span class="w">    </span><span class="cp">#[test]</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">test_encode_decode_chat</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">msg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Message</span><span class="p">::</span><span class="n">Chat</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">username</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Walter&quot;</span><span class="p">.</span><span class="n">to_string</span><span class="p">(),</span>
+<span class="w">            </span><span class="n">content</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Hello everyone!&quot;</span><span class="p">.</span><span class="n">to_string</span><span class="p">(),</span>
+<span class="w">        </span><span class="p">};</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">encoded</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">msg</span><span class="p">.</span><span class="n">encode</span><span class="p">();</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">decoded</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Message</span><span class="p">::</span><span class="n">decode</span><span class="p">(</span><span class="o">&amp;</span><span class="n">encoded</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span>
+
+<span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="n">decoded</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">Message</span><span class="p">::</span><span class="n">Chat</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">username</span><span class="p">,</span><span class="w"> </span><span class="n">content</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">username</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;Walter&quot;</span><span class="p">);</span>
+<span class="w">                </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">content</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;Hello everyone!&quot;</span><span class="p">);</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Expected Chat message&quot;</span><span class="p">),</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="cp">#[test]</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">test_encode_decode_join</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">msg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Message</span><span class="p">::</span><span class="n">Join</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">username</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Alice&quot;</span><span class="p">.</span><span class="n">to_string</span><span class="p">(),</span>
+<span class="w">        </span><span class="p">};</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">encoded</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">msg</span><span class="p">.</span><span class="n">encode</span><span class="p">();</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">decoded</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Message</span><span class="p">::</span><span class="n">decode</span><span class="p">(</span><span class="o">&amp;</span><span class="n">encoded</span><span class="p">).</span><span class="n">unwrap</span><span class="p">();</span>
+
+<span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="n">decoded</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">Message</span><span class="p">::</span><span class="n">Join</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">username</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="n">username</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;Alice&quot;</span><span class="p">),</span>
+<span class="w">            </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="fm">panic!</span><span class="p">(</span><span class="s">&quot;Expected Join message&quot;</span><span class="p">),</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="cp">#[test]</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">test_display</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">msg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Message</span><span class="p">::</span><span class="n">Chat</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">username</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Bob&quot;</span><span class="p">.</span><span class="n">to_string</span><span class="p">(),</span>
+<span class="w">            </span><span class="n">content</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Hi!&quot;</span><span class="p">.</span><span class="n">to_string</span><span class="p">(),</span>
+<span class="w">        </span><span class="p">};</span>
+<span class="w">        </span><span class="fm">assert_eq!</span><span class="p">(</span><span class="fm">format!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">msg</span><span class="p">),</span><span class="w"> </span><span class="s">&quot;💬 Bob: Hi!&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<blockquote>
+<div><p><strong>知识点回顾</strong>：</p>
+<ul class="simple">
+<li><p><strong>枚举 + 关联数据</strong>（ch05）：<code class="docutils literal notranslate"><span class="pre">Message</span></code> 枚举的每个变体携带不同数据</p></li>
+<li><p><strong>模式匹配</strong>（ch05）：<code class="docutils literal notranslate"><span class="pre">match</span></code> 解构枚举</p></li>
+<li><p><strong>Display trait</strong>（ch06）：为终端友好输出实现 <code class="docutils literal notranslate"><span class="pre">Display</span></code></p></li>
+<li><p><strong>自定义错误</strong>（ch07）：<code class="docutils literal notranslate"><span class="pre">ProtocolError</span></code> 枚举</p></li>
+<li><p><strong>单元测试</strong>：<code class="docutils literal notranslate"><span class="pre">#[cfg(test)]</span></code> 模块</p></li>
+</ul>
+</div></blockquote>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id7">
+<h2>9.3 聊天服务器<a class="headerlink" href="#id7" title="Link to this heading">#</a></h2>
+<section id="server-rs">
+<h3>9.3.1 server.rs<a class="headerlink" href="#server-rs" title="Link to this heading">#</a></h3>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// src/server.rs</span>
+<span class="k">use</span><span class="w"> </span><span class="k">crate</span><span class="p">::</span><span class="n">protocol</span><span class="p">::</span><span class="n">Message</span><span class="p">;</span>
+<span class="k">use</span><span class="w"> </span><span class="n">anyhow</span><span class="p">::{</span><span class="n">Context</span><span class="p">,</span><span class="w"> </span><span class="nb">Result</span><span class="p">};</span>
+<span class="k">use</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">collections</span><span class="p">::</span><span class="n">HashMap</span><span class="p">;</span>
+<span class="k">use</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">sync</span><span class="p">::</span><span class="n">Arc</span><span class="p">;</span>
+<span class="k">use</span><span class="w"> </span><span class="n">tokio</span><span class="p">::</span><span class="n">io</span><span class="p">::{</span><span class="n">AsyncBufReadExt</span><span class="p">,</span><span class="w"> </span><span class="n">AsyncWriteExt</span><span class="p">,</span><span class="w"> </span><span class="n">BufReader</span><span class="p">};</span>
+<span class="k">use</span><span class="w"> </span><span class="n">tokio</span><span class="p">::</span><span class="n">net</span><span class="p">::{</span><span class="n">TcpListener</span><span class="p">,</span><span class="w"> </span><span class="n">TcpStream</span><span class="p">};</span>
+<span class="k">use</span><span class="w"> </span><span class="n">tokio</span><span class="p">::</span><span class="n">sync</span><span class="p">::{</span><span class="n">broadcast</span><span class="p">,</span><span class="w"> </span><span class="n">Mutex</span><span class="p">};</span>
+
+<span class="sd">/// 聊天室状态（ch05 知识：结构体）</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">ChatRoom</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="sd">/// 在线用户：username -&gt; () （用 HashMap 快速查找）</span>
+<span class="w">    </span><span class="n">users</span><span class="p">:</span><span class="w"> </span><span class="nc">HashMap</span><span class="o">&lt;</span><span class="nb">String</span><span class="p">,</span><span class="w"> </span><span class="p">()</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">ChatRoom</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">new</span><span class="p">()</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nc">Self</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">users</span><span class="p">:</span><span class="w"> </span><span class="nc">HashMap</span><span class="p">::</span><span class="n">new</span><span class="p">(),</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">add_user</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">username</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kt">bool</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">users</span><span class="p">.</span><span class="n">contains_key</span><span class="p">(</span><span class="n">username</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="kc">false</span><span class="w"> </span><span class="c1">// 用户名已存在</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="bp">self</span><span class="p">.</span><span class="n">users</span><span class="p">.</span><span class="n">insert</span><span class="p">(</span><span class="n">username</span><span class="p">.</span><span class="n">to_string</span><span class="p">(),</span><span class="w"> </span><span class="p">());</span>
+<span class="w">            </span><span class="kc">true</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">remove_user</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">username</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">users</span><span class="p">.</span><span class="n">remove</span><span class="p">(</span><span class="n">username</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">list_users</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">users</span><span class="p">.</span><span class="n">keys</span><span class="p">().</span><span class="n">cloned</span><span class="p">().</span><span class="n">collect</span><span class="p">()</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">user_count</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">users</span><span class="p">.</span><span class="n">len</span><span class="p">()</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="sd">/// 启动聊天服务器</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="n">addr</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">()</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">listener</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TcpListener</span><span class="p">::</span><span class="n">bind</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+<span class="w">        </span><span class="p">.</span><span class="k">await</span>
+<span class="w">        </span><span class="p">.</span><span class="n">context</span><span class="p">(</span><span class="fm">format!</span><span class="p">(</span><span class="s">&quot;Failed to bind to {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">addr</span><span class="p">))</span><span class="o">?</span><span class="p">;</span>
+
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;🚀 Chat server listening on {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">addr</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 广播 channel：所有客户端共享（ch08 知识：broadcast channel）</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">tx</span><span class="p">,</span><span class="w"> </span><span class="n">_rx</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">broadcast</span><span class="p">::</span><span class="n">channel</span><span class="p">::</span><span class="o">&lt;</span><span class="n">Message</span><span class="o">&gt;</span><span class="p">(</span><span class="mi">100</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 聊天室状态：Arc + Mutex 多任务共享（ch08 知识）</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">room</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span><span class="p">::</span><span class="n">new</span><span class="p">(</span><span class="n">Mutex</span><span class="p">::</span><span class="n">new</span><span class="p">(</span><span class="n">ChatRoom</span><span class="p">::</span><span class="n">new</span><span class="p">()));</span>
+
+<span class="w">    </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">socket</span><span class="p">,</span><span class="w"> </span><span class="n">peer_addr</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">listener</span><span class="p">.</span><span class="n">accept</span><span class="p">().</span><span class="k">await</span><span class="o">?</span><span class="p">;</span>
+<span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;📡 New connection from {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">peer_addr</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 为每个连接克隆共享资源（ch03 知识：Arc::clone 不是深拷贝）</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">tx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">tx</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">rx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">tx</span><span class="p">.</span><span class="n">subscribe</span><span class="p">();</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">room</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span><span class="p">::</span><span class="n">clone</span><span class="p">(</span><span class="o">&amp;</span><span class="n">room</span><span class="p">);</span>
+
+<span class="w">        </span><span class="c1">// 为每个连接创建一个异步任务（ch08 知识：tokio::spawn）</span>
+<span class="w">        </span><span class="n">tokio</span><span class="p">::</span><span class="n">spawn</span><span class="p">(</span><span class="k">async</span><span class="w"> </span><span class="k">move</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Err</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">handle_client</span><span class="p">(</span><span class="n">socket</span><span class="p">,</span><span class="w"> </span><span class="n">tx</span><span class="p">,</span><span class="w"> </span><span class="n">rx</span><span class="p">,</span><span class="w"> </span><span class="n">room</span><span class="p">).</span><span class="k">await</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="fm">eprintln!</span><span class="p">(</span><span class="s">&quot;❌ Error handling {}: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">peer_addr</span><span class="p">,</span><span class="w"> </span><span class="n">e</span><span class="p">);</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">});</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="sd">/// 处理单个客户端连接</span>
+<span class="k">async</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">handle_client</span><span class="p">(</span>
+<span class="w">    </span><span class="n">socket</span><span class="p">:</span><span class="w"> </span><span class="nc">TcpStream</span><span class="p">,</span>
+<span class="w">    </span><span class="n">tx</span><span class="p">:</span><span class="w"> </span><span class="nc">broadcast</span><span class="p">::</span><span class="n">Sender</span><span class="o">&lt;</span><span class="n">Message</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">    </span><span class="k">mut</span><span class="w"> </span><span class="n">rx</span><span class="p">:</span><span class="w"> </span><span class="nc">broadcast</span><span class="p">::</span><span class="n">Receiver</span><span class="o">&lt;</span><span class="n">Message</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="w">    </span><span class="n">room</span><span class="p">:</span><span class="w"> </span><span class="nc">Arc</span><span class="o">&lt;</span><span class="n">Mutex</span><span class="o">&lt;</span><span class="n">ChatRoom</span><span class="o">&gt;&gt;</span><span class="p">,</span>
+<span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">()</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">reader</span><span class="p">,</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">writer</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">socket</span><span class="p">.</span><span class="n">into_split</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">reader</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BufReader</span><span class="p">::</span><span class="n">new</span><span class="p">(</span><span class="n">reader</span><span class="p">);</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">line</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">new</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// === 第一步：获取用户昵称 ===</span>
+<span class="w">    </span><span class="n">writer</span>
+<span class="w">        </span><span class="p">.</span><span class="n">write_all</span><span class="p">(</span><span class="s">b&quot;Welcome to Hive Chat! Enter your username: &quot;</span><span class="p">)</span>
+<span class="w">        </span><span class="p">.</span><span class="k">await</span><span class="o">?</span><span class="p">;</span>
+
+<span class="w">    </span><span class="n">line</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">reader</span><span class="p">.</span><span class="n">read_line</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">line</span><span class="p">).</span><span class="k">await</span><span class="o">?</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">n</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">Ok</span><span class="p">(());</span><span class="w"> </span><span class="c1">// 客户端断开</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">username</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">line</span><span class="p">.</span><span class="n">trim</span><span class="p">().</span><span class="n">to_string</span><span class="p">();</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">username</span><span class="p">.</span><span class="n">is_empty</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">writer</span><span class="p">.</span><span class="n">write_all</span><span class="p">(</span><span class="s">b&quot;Username cannot be empty. Goodbye!</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">).</span><span class="k">await</span><span class="o">?</span><span class="p">;</span>
+<span class="w">        </span><span class="k">return</span><span class="w"> </span><span class="nb">Ok</span><span class="p">(());</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 注册用户到聊天室</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">room</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">room</span><span class="p">.</span><span class="n">lock</span><span class="p">().</span><span class="k">await</span><span class="p">;</span><span class="w"> </span><span class="c1">// tokio::sync::Mutex（ch08 知识）</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="o">!</span><span class="n">room</span><span class="p">.</span><span class="n">add_user</span><span class="p">(</span><span class="o">&amp;</span><span class="n">username</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">writer</span>
+<span class="w">                </span><span class="p">.</span><span class="n">write_all</span><span class="p">(</span><span class="fm">format!</span><span class="p">(</span><span class="s">&quot;Username &#39;{}&#39; is taken. Goodbye!</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">username</span><span class="p">).</span><span class="n">as_bytes</span><span class="p">())</span>
+<span class="w">                </span><span class="p">.</span><span class="k">await</span><span class="o">?</span><span class="p">;</span>
+<span class="w">            </span><span class="k">return</span><span class="w"> </span><span class="nb">Ok</span><span class="p">(());</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">room</span><span class="p">.</span><span class="n">user_count</span><span class="p">();</span>
+<span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;✅ {} joined ({} users online)&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">username</span><span class="p">,</span><span class="w"> </span><span class="n">count</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 广播加入消息</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">join_msg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Message</span><span class="p">::</span><span class="n">Join</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">username</span><span class="p">:</span><span class="w"> </span><span class="nc">username</span><span class="p">.</span><span class="n">clone</span><span class="p">(),</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">tx</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="n">join_msg</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 发送欢迎消息给当前用户</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">welcome</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Message</span><span class="p">::</span><span class="n">System</span><span class="p">(</span><span class="fm">format!</span><span class="p">(</span>
+<span class="w">        </span><span class="s">&quot;Welcome, {}! Type /list for online users, /quit to exit.&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="n">username</span>
+<span class="w">    </span><span class="p">));</span>
+<span class="w">    </span><span class="n">writer</span><span class="p">.</span><span class="n">write_all</span><span class="p">(</span><span class="n">welcome</span><span class="p">.</span><span class="n">encode</span><span class="p">().</span><span class="n">as_bytes</span><span class="p">()).</span><span class="k">await</span><span class="o">?</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// === 第二步：主循环 — 同时处理读和写 ===</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">username_for_read</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">username</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">username_for_write</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">username</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">room_for_cleanup</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Arc</span><span class="p">::</span><span class="n">clone</span><span class="p">(</span><span class="o">&amp;</span><span class="n">room</span><span class="p">);</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">tx_for_read</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">tx</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span>
+
+<span class="w">    </span><span class="c1">// 读取任务：从客户端读消息 → 广播</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">read_task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">tokio</span><span class="p">::</span><span class="n">spawn</span><span class="p">(</span><span class="k">async</span><span class="w"> </span><span class="k">move</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">line</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">new</span><span class="p">();</span>
+<span class="w">        </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">line</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span>
+<span class="w">            </span><span class="k">match</span><span class="w"> </span><span class="n">reader</span><span class="p">.</span><span class="n">read_line</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">line</span><span class="p">).</span><span class="k">await</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="nb">Ok</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">break</span><span class="p">,</span><span class="w"> </span><span class="c1">// 连接关闭</span>
+<span class="w">                </span><span class="nb">Ok</span><span class="p">(</span><span class="n">_</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="kd">let</span><span class="w"> </span><span class="n">trimmed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">line</span><span class="p">.</span><span class="n">trim</span><span class="p">();</span>
+<span class="w">                    </span><span class="k">if</span><span class="w"> </span><span class="n">trimmed</span><span class="p">.</span><span class="n">is_empty</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                        </span><span class="k">continue</span><span class="p">;</span>
+<span class="w">                    </span><span class="p">}</span>
+
+<span class="w">                    </span><span class="c1">// 处理命令</span>
+<span class="w">                    </span><span class="k">match</span><span class="w"> </span><span class="n">trimmed</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                        </span><span class="s">&quot;/quit&quot;</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">break</span><span class="p">,</span>
+<span class="w">                        </span><span class="s">&quot;/list&quot;</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                            </span><span class="kd">let</span><span class="w"> </span><span class="n">room</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">room</span><span class="p">.</span><span class="n">lock</span><span class="p">().</span><span class="k">await</span><span class="p">;</span>
+<span class="w">                            </span><span class="kd">let</span><span class="w"> </span><span class="n">users</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">room</span><span class="p">.</span><span class="n">list_users</span><span class="p">();</span>
+<span class="w">                            </span><span class="kd">let</span><span class="w"> </span><span class="n">msg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Message</span><span class="p">::</span><span class="n">UserList</span><span class="p">(</span><span class="n">users</span><span class="p">);</span>
+<span class="w">                            </span><span class="kd">let</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">tx_for_read</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="n">msg</span><span class="p">);</span>
+<span class="w">                        </span><span class="p">}</span>
+<span class="w">                        </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                            </span><span class="kd">let</span><span class="w"> </span><span class="n">msg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Message</span><span class="p">::</span><span class="n">Chat</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                                </span><span class="n">username</span><span class="p">:</span><span class="w"> </span><span class="nc">username_for_read</span><span class="p">.</span><span class="n">clone</span><span class="p">(),</span>
+<span class="w">                                </span><span class="n">content</span><span class="p">:</span><span class="w"> </span><span class="nc">trimmed</span><span class="p">.</span><span class="n">to_string</span><span class="p">(),</span>
+<span class="w">                            </span><span class="p">};</span>
+<span class="w">                            </span><span class="kd">let</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">tx_for_read</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="n">msg</span><span class="p">);</span>
+<span class="w">                        </span><span class="p">}</span>
+<span class="w">                    </span><span class="p">}</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">                </span><span class="nb">Err</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="fm">eprintln!</span><span class="p">(</span><span class="s">&quot;Read error: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">e</span><span class="p">);</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">});</span>
+
+<span class="w">    </span><span class="c1">// 写入任务：从广播接收消息 → 发送给客户端</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">write_task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">tokio</span><span class="p">::</span><span class="n">spawn</span><span class="p">(</span><span class="k">async</span><span class="w"> </span><span class="k">move</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">match</span><span class="w"> </span><span class="n">rx</span><span class="p">.</span><span class="n">recv</span><span class="p">().</span><span class="k">await</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="nb">Ok</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="c1">// 不把自己的聊天消息回显给自己</span>
+<span class="w">                    </span><span class="kd">let</span><span class="w"> </span><span class="n">should_skip</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="fm">matches!</span><span class="p">(</span>
+<span class="w">                        </span><span class="o">&amp;</span><span class="n">msg</span><span class="p">,</span>
+<span class="w">                        </span><span class="n">Message</span><span class="p">::</span><span class="n">Chat</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">username</span><span class="p">,</span><span class="w"> </span><span class="o">..</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">username</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="o">&amp;</span><span class="n">username_for_write</span>
+<span class="w">                    </span><span class="p">);</span>
+
+<span class="w">                    </span><span class="k">if</span><span class="w"> </span><span class="o">!</span><span class="n">should_skip</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                        </span><span class="kd">let</span><span class="w"> </span><span class="n">text</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="fm">format!</span><span class="p">(</span><span class="s">&quot;{}</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">msg</span><span class="p">);</span><span class="w"> </span><span class="c1">// 使用 Display trait</span>
+<span class="w">                        </span><span class="k">if</span><span class="w"> </span><span class="n">writer</span><span class="p">.</span><span class="n">write_all</span><span class="p">(</span><span class="n">text</span><span class="p">.</span><span class="n">as_bytes</span><span class="p">()).</span><span class="k">await</span><span class="p">.</span><span class="n">is_err</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                            </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                        </span><span class="p">}</span>
+<span class="w">                    </span><span class="p">}</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">                </span><span class="nb">Err</span><span class="p">(</span><span class="n">broadcast</span><span class="p">::</span><span class="n">error</span><span class="p">::</span><span class="n">RecvError</span><span class="p">::</span><span class="n">Lagged</span><span class="p">(</span><span class="n">n</span><span class="p">))</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="fm">eprintln!</span><span class="p">(</span><span class="s">&quot;Warning: {} missed {} messages&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">username_for_write</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">);</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">                </span><span class="nb">Err</span><span class="p">(</span><span class="n">broadcast</span><span class="p">::</span><span class="n">error</span><span class="p">::</span><span class="n">RecvError</span><span class="p">::</span><span class="n">Closed</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">break</span><span class="p">,</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">});</span>
+
+<span class="w">    </span><span class="c1">// 等待任一任务结束（ch08 知识：tokio::select!）</span>
+<span class="w">    </span><span class="n">tokio</span><span class="p">::</span><span class="n">select</span><span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">read_task</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">write_task</span><span class="p">.</span><span class="n">abort</span><span class="p">();</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="n">_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">write_task</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">read_task</span><span class="p">.</span><span class="n">abort</span><span class="p">();</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// === 第三步：清理 ===</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">room</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">room_for_cleanup</span><span class="p">.</span><span class="n">lock</span><span class="p">().</span><span class="k">await</span><span class="p">;</span>
+<span class="w">        </span><span class="n">room</span><span class="p">.</span><span class="n">remove_user</span><span class="p">(</span><span class="o">&amp;</span><span class="n">username</span><span class="p">);</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">room</span><span class="p">.</span><span class="n">user_count</span><span class="p">();</span>
+<span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;👋 {} left ({} users online)&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">username</span><span class="p">,</span><span class="w"> </span><span class="n">count</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">leave_msg</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Message</span><span class="p">::</span><span class="n">Leave</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">username</span><span class="p">:</span><span class="w"> </span><span class="nc">username</span><span class="p">.</span><span class="n">clone</span><span class="p">(),</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">tx</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="n">leave_msg</span><span class="p">);</span>
+
+<span class="w">    </span><span class="nb">Ok</span><span class="p">(())</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<blockquote>
+<div><p><strong>知识点回顾</strong>：</p>
+<ul class="simple">
+<li><p><strong>Arc + Mutex</strong>（ch08）：<code class="docutils literal notranslate"><span class="pre">ChatRoom</span></code> 被多个异步任务共享</p></li>
+<li><p><strong>broadcast channel</strong>（ch08）：消息广播给所有客户端</p></li>
+<li><p><strong>tokio::spawn</strong>（ch08）：每个连接一个异步任务</p></li>
+<li><p><strong>tokio::select!</strong>（ch08）：同时等待读和写</p></li>
+<li><p><strong>所有权与 move</strong>（ch03-04）：<code class="docutils literal notranslate"><span class="pre">username.clone()</span></code> 给不同的任务</p></li>
+<li><p><strong>错误处理</strong>（ch07）：<code class="docutils literal notranslate"><span class="pre">?</span></code> 操作符 + <code class="docutils literal notranslate"><span class="pre">anyhow</span></code></p></li>
+</ul>
+</div></blockquote>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id8">
+<h2>9.4 聊天客户端<a class="headerlink" href="#id8" title="Link to this heading">#</a></h2>
+<section id="client-rs">
+<h3>9.4.1 client.rs<a class="headerlink" href="#client-rs" title="Link to this heading">#</a></h3>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// src/client.rs</span>
+<span class="k">use</span><span class="w"> </span><span class="k">crate</span><span class="p">::</span><span class="n">protocol</span><span class="p">::</span><span class="n">Message</span><span class="p">;</span>
+<span class="k">use</span><span class="w"> </span><span class="n">anyhow</span><span class="p">::{</span><span class="n">Context</span><span class="p">,</span><span class="w"> </span><span class="nb">Result</span><span class="p">};</span>
+<span class="k">use</span><span class="w"> </span><span class="n">tokio</span><span class="p">::</span><span class="n">io</span><span class="p">::{</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">AsyncBufReadExt</span><span class="p">,</span><span class="w"> </span><span class="n">AsyncWriteExt</span><span class="p">,</span><span class="w"> </span><span class="n">BufReader</span><span class="p">};</span>
+<span class="k">use</span><span class="w"> </span><span class="n">tokio</span><span class="p">::</span><span class="n">net</span><span class="p">::</span><span class="n">TcpStream</span><span class="p">;</span>
+
+<span class="sd">/// 启动聊天客户端</span>
+<span class="k">pub</span><span class="w"> </span><span class="k">async</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="n">addr</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">()</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">stream</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">TcpStream</span><span class="p">::</span><span class="n">connect</span><span class="p">(</span><span class="n">addr</span><span class="p">)</span>
+<span class="w">        </span><span class="p">.</span><span class="k">await</span>
+<span class="w">        </span><span class="p">.</span><span class="n">context</span><span class="p">(</span><span class="fm">format!</span><span class="p">(</span><span class="s">&quot;Failed to connect to {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">addr</span><span class="p">))</span><span class="o">?</span><span class="p">;</span>
+
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;🔗 Connected to {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">addr</span><span class="p">);</span>
+
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="p">(</span><span class="n">reader</span><span class="p">,</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">writer</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">stream</span><span class="p">.</span><span class="n">into_split</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">server_reader</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BufReader</span><span class="p">::</span><span class="n">new</span><span class="p">(</span><span class="n">reader</span><span class="p">);</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">stdin</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">io</span><span class="p">::</span><span class="n">stdin</span><span class="p">();</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">stdin_reader</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">BufReader</span><span class="p">::</span><span class="n">new</span><span class="p">(</span><span class="n">stdin</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 读取服务器的欢迎消息（要求输入用户名）</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">welcome</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">new</span><span class="p">();</span>
+<span class="w">    </span><span class="n">server_reader</span><span class="p">.</span><span class="n">read_line</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">welcome</span><span class="p">).</span><span class="k">await</span><span class="o">?</span><span class="p">;</span>
+<span class="w">    </span><span class="fm">print!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">welcome</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 读取用户输入的用户名并发送</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">username</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">new</span><span class="p">();</span>
+<span class="w">    </span><span class="n">stdin_reader</span><span class="p">.</span><span class="n">read_line</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">username</span><span class="p">).</span><span class="k">await</span><span class="o">?</span><span class="p">;</span>
+<span class="w">    </span><span class="n">writer</span><span class="p">.</span><span class="n">write_all</span><span class="p">(</span><span class="n">username</span><span class="p">.</span><span class="n">as_bytes</span><span class="p">()).</span><span class="k">await</span><span class="o">?</span><span class="p">;</span>
+
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">username</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">username</span><span class="p">.</span><span class="n">trim</span><span class="p">().</span><span class="n">to_string</span><span class="p">();</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;✅ Logged in as &#39;{}&#39;. Start chatting!</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">username</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// 从服务器读取消息 → 显示在终端</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">read_task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">tokio</span><span class="p">::</span><span class="n">spawn</span><span class="p">(</span><span class="k">async</span><span class="w"> </span><span class="k">move</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">line</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">new</span><span class="p">();</span>
+<span class="w">        </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">line</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span>
+<span class="w">            </span><span class="k">match</span><span class="w"> </span><span class="n">server_reader</span><span class="p">.</span><span class="n">read_line</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">line</span><span class="p">).</span><span class="k">await</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="nb">Ok</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">🔌 Server disconnected.&quot;</span><span class="p">);</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">                </span><span class="nb">Ok</span><span class="p">(</span><span class="n">_</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="kd">let</span><span class="w"> </span><span class="n">trimmed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">line</span><span class="p">.</span><span class="n">trim</span><span class="p">();</span>
+<span class="w">                    </span><span class="c1">// 尝试解析为 Message 以获得漂亮的显示</span>
+<span class="w">                    </span><span class="k">match</span><span class="w"> </span><span class="n">Message</span><span class="p">::</span><span class="n">decode</span><span class="p">(</span><span class="n">trimmed</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                        </span><span class="nb">Ok</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">msg</span><span class="p">),</span><span class="w"> </span><span class="c1">// Display trait</span>
+<span class="w">                        </span><span class="nb">Err</span><span class="p">(</span><span class="n">_</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="fm">print!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">line</span><span class="p">),</span><span class="w">   </span><span class="c1">// 原样显示</span>
+<span class="w">                    </span><span class="p">}</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">                </span><span class="nb">Err</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="fm">eprintln!</span><span class="p">(</span><span class="s">&quot;Read error: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">e</span><span class="p">);</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">});</span>
+
+<span class="w">    </span><span class="c1">// 从终端读取用户输入 → 发送给服务器</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">write_task</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">tokio</span><span class="p">::</span><span class="n">spawn</span><span class="p">(</span><span class="k">async</span><span class="w"> </span><span class="k">move</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">line</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">new</span><span class="p">();</span>
+<span class="w">        </span><span class="k">loop</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">line</span><span class="p">.</span><span class="n">clear</span><span class="p">();</span>
+<span class="w">            </span><span class="k">match</span><span class="w"> </span><span class="n">stdin_reader</span><span class="p">.</span><span class="n">read_line</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">line</span><span class="p">).</span><span class="k">await</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="nb">Ok</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="k">break</span><span class="p">,</span><span class="w"> </span><span class="c1">// EOF (Ctrl+D)</span>
+<span class="w">                </span><span class="nb">Ok</span><span class="p">(</span><span class="n">_</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="kd">let</span><span class="w"> </span><span class="n">trimmed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">line</span><span class="p">.</span><span class="n">trim</span><span class="p">();</span>
+<span class="w">                    </span><span class="k">if</span><span class="w"> </span><span class="n">trimmed</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="s">&quot;/quit&quot;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                        </span><span class="n">writer</span><span class="p">.</span><span class="n">write_all</span><span class="p">(</span><span class="s">b&quot;/quit</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">).</span><span class="k">await</span><span class="p">.</span><span class="n">ok</span><span class="p">();</span>
+<span class="w">                        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;👋 Goodbye!&quot;</span><span class="p">);</span>
+<span class="w">                        </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                    </span><span class="p">}</span>
+
+<span class="w">                    </span><span class="c1">// 发送原始文本，服务器会处理</span>
+<span class="w">                    </span><span class="k">if</span><span class="w"> </span><span class="n">writer</span><span class="p">.</span><span class="n">write_all</span><span class="p">(</span><span class="n">line</span><span class="p">.</span><span class="n">as_bytes</span><span class="p">()).</span><span class="k">await</span><span class="p">.</span><span class="n">is_err</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                        </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                    </span><span class="p">}</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">                </span><span class="nb">Err</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="fm">eprintln!</span><span class="p">(</span><span class="s">&quot;Input error: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">e</span><span class="p">);</span>
+<span class="w">                    </span><span class="k">break</span><span class="p">;</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">});</span>
+
+<span class="w">    </span><span class="c1">// 任一任务结束则退出</span>
+<span class="w">    </span><span class="n">tokio</span><span class="p">::</span><span class="n">select</span><span class="o">!</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">read_task</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">write_task</span><span class="p">.</span><span class="n">abort</span><span class="p">(),</span>
+<span class="w">        </span><span class="n">_</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">write_task</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="n">read_task</span><span class="p">.</span><span class="n">abort</span><span class="p">(),</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="nb">Ok</span><span class="p">(())</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id9">
+<h2>9.5 主入口<a class="headerlink" href="#id9" title="Link to this heading">#</a></h2>
+<section id="main-rs">
+<h3>9.5.1 main.rs<a class="headerlink" href="#main-rs" title="Link to this heading">#</a></h3>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// src/main.rs</span>
+<span class="k">mod</span><span class="w"> </span><span class="nn">client</span><span class="p">;</span>
+<span class="k">mod</span><span class="w"> </span><span class="nn">protocol</span><span class="p">;</span>
+<span class="k">mod</span><span class="w"> </span><span class="nn">server</span><span class="p">;</span>
+
+<span class="k">use</span><span class="w"> </span><span class="n">anyhow</span><span class="p">::</span><span class="nb">Result</span><span class="p">;</span>
+<span class="k">use</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">env</span><span class="p">;</span>
+
+<span class="k">const</span><span class="w"> </span><span class="n">DEFAULT_ADDR</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;127.0.0.1:6379&quot;</span><span class="p">;</span>
+
+<span class="cp">#[tokio::main]</span>
+<span class="k">async</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">()</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">args</span><span class="p">:</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">env</span><span class="p">::</span><span class="n">args</span><span class="p">().</span><span class="n">collect</span><span class="p">();</span>
+
+<span class="w">    </span><span class="k">match</span><span class="w"> </span><span class="n">args</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="mi">1</span><span class="p">).</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="n">s</span><span class="o">|</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">as_str</span><span class="p">())</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nb">Some</span><span class="p">(</span><span class="s">&quot;server&quot;</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">addr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">args</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="mi">2</span><span class="p">).</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="n">s</span><span class="o">|</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">as_str</span><span class="p">()).</span><span class="n">unwrap_or</span><span class="p">(</span><span class="n">DEFAULT_ADDR</span><span class="p">);</span>
+<span class="w">            </span><span class="n">server</span><span class="p">::</span><span class="n">run</span><span class="p">(</span><span class="n">addr</span><span class="p">).</span><span class="k">await</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="nb">Some</span><span class="p">(</span><span class="s">&quot;client&quot;</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">addr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">args</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="mi">2</span><span class="p">).</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="n">s</span><span class="o">|</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">as_str</span><span class="p">()).</span><span class="n">unwrap_or</span><span class="p">(</span><span class="n">DEFAULT_ADDR</span><span class="p">);</span>
+<span class="w">            </span><span class="n">client</span><span class="p">::</span><span class="n">run</span><span class="p">(</span><span class="n">addr</span><span class="p">).</span><span class="k">await</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Hive Chat - A Terminal Chat Room&quot;</span><span class="p">);</span>
+<span class="w">            </span><span class="fm">println!</span><span class="p">();</span>
+<span class="w">            </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Usage:&quot;</span><span class="p">);</span>
+<span class="w">            </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;  chat-room server [addr]   Start the chat server&quot;</span><span class="p">);</span>
+<span class="w">            </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;  chat-room client [addr]   Connect as a client&quot;</span><span class="p">);</span>
+<span class="w">            </span><span class="fm">println!</span><span class="p">();</span>
+<span class="w">            </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Default address: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">DEFAULT_ADDR</span><span class="p">);</span>
+<span class="w">            </span><span class="nb">Ok</span><span class="p">(())</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="cargo-toml">
+<h3>9.5.2 Cargo.toml<a class="headerlink" href="#cargo-toml" title="Link to this heading">#</a></h3>
+<div class="highlight-toml notranslate"><div class="highlight"><pre><span></span><span class="k">[package]</span>
+<span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;chat-room&quot;</span>
+<span class="n">version</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;0.1.0&quot;</span>
+<span class="n">edition</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;2021&quot;</span>
+
+<span class="k">[dependencies]</span>
+<span class="n">tokio</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">version</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="s2">&quot;1&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">features</span><span class="w"> </span><span class="p">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;full&quot;</span><span class="p">]</span><span class="w"> </span><span class="p">}</span>
+<span class="n">anyhow</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;1&quot;</span>
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id10">
+<h2>9.6 运行与测试<a class="headerlink" href="#id10" title="Link to this heading">#</a></h2>
+<section id="id11">
+<h3>9.6.1 启动服务器<a class="headerlink" href="#id11" title="Link to this heading">#</a></h3>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>cargo<span class="w"> </span>run<span class="w"> </span>--<span class="w"> </span>server
+🚀<span class="w"> </span>Chat<span class="w"> </span>server<span class="w"> </span>listening<span class="w"> </span>on<span class="w"> </span><span class="m">127</span>.0.0.1:6379
+</pre></div>
+</div>
+</section>
+<section id="id12">
+<h3>9.6.2 启动客户端（开多个终端）<a class="headerlink" href="#id12" title="Link to this heading">#</a></h3>
+<p><strong>终端 2</strong>：</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>cargo<span class="w"> </span>run<span class="w"> </span>--<span class="w"> </span>client
+🔗<span class="w"> </span>Connected<span class="w"> </span>to<span class="w"> </span><span class="m">127</span>.0.0.1:6379
+Welcome<span class="w"> </span>to<span class="w"> </span>Hive<span class="w"> </span>Chat!<span class="w"> </span>Enter<span class="w"> </span>your<span class="w"> </span>username:<span class="w"> </span>Walter
+✅<span class="w"> </span>Logged<span class="w"> </span><span class="k">in</span><span class="w"> </span>as<span class="w"> </span><span class="s1">&#39;Walter&#39;</span>.<span class="w"> </span>Start<span class="w"> </span>chatting!
+
+Hello<span class="w"> </span>everyone!
+</pre></div>
+</div>
+<p><strong>终端 3</strong>：</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>$<span class="w"> </span>cargo<span class="w"> </span>run<span class="w"> </span>--<span class="w"> </span>client
+🔗<span class="w"> </span>Connected<span class="w"> </span>to<span class="w"> </span><span class="m">127</span>.0.0.1:6379
+Welcome<span class="w"> </span>to<span class="w"> </span>Hive<span class="w"> </span>Chat!<span class="w"> </span>Enter<span class="w"> </span>your<span class="w"> </span>username:<span class="w"> </span>Alice
+✅<span class="w"> </span>Logged<span class="w"> </span><span class="k">in</span><span class="w"> </span>as<span class="w"> </span><span class="s1">&#39;Alice&#39;</span>.<span class="w"> </span>Start<span class="w"> </span>chatting!
+
+📥<span class="w"> </span>Alice<span class="w"> </span>joined<span class="w"> </span>the<span class="w"> </span>chat
+💬<span class="w"> </span>Walter:<span class="w"> </span>Hello<span class="w"> </span>everyone!
+Hi<span class="w"> </span>Walter!
+</pre></div>
+</div>
+</section>
+<section id="id13">
+<h3>9.6.3 完整对话示例<a class="headerlink" href="#id13" title="Link to this heading">#</a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>[Walter 的终端]                      [Alice 的终端]
+──────────────────────────────────   ──────────────────────────────────
+Hello everyone!                      📥 Alice joined the chat
+📥 Alice joined the chat             💬 Walter: Hello everyone!
+💬 Alice: Hi Walter!                 Hi Walter!
+/list                                /list
+👥 Online (2): Walter, Alice         👥 Online (2): Walter, Alice
+How&#39;s the Tauri book going?
+💬 Alice: Great! Almost done.        Great! Almost done.
+/quit                                📤 Walter left the chat
+👋 Goodbye!
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id14">
+<h2>9.7 架构回顾<a class="headerlink" href="#id14" title="Link to this heading">#</a></h2>
+<pre  class="mermaid">
+        graph TB
+    subgraph &quot;Server&quot;
+        L[TcpListener] --&gt; |accept| H1[handle_client Task 1]
+        L --&gt; |accept| H2[handle_client Task 2]
+        L --&gt; |accept| H3[handle_client Task N]
+
+        BC[broadcast::channel]
+        CR[ChatRoom&lt;br&gt;Arc+Mutex]
+
+        H1 --&gt; |send| BC
+        H2 --&gt; |send| BC
+        H3 --&gt; |send| BC
+
+        BC --&gt; |recv| H1
+        BC --&gt; |recv| H2
+        BC --&gt; |recv| H3
+
+        H1 --&gt; |lock| CR
+        H2 --&gt; |lock| CR
+        H3 --&gt; |lock| CR
+    end
+
+    subgraph &quot;Client 1&quot;
+        C1R[Read Task&lt;br&gt;server → terminal]
+        C1W[Write Task&lt;br&gt;stdin → server]
+    end
+
+    subgraph &quot;Client 2&quot;
+        C2R[Read Task]
+        C2W[Write Task]
+    end
+
+    H1 &lt;--&gt; |TCP| C1R
+    H1 &lt;--&gt; |TCP| C1W
+    H2 &lt;--&gt; |TCP| C2R
+    H2 &lt;--&gt; |TCP| C2W
+
+    style BC fill:#fbf,stroke:#333
+    style CR fill:#bfb,stroke:#333
+    </pre><section id="id15">
+<h3>9.7.1 每个连接的生命周期<a class="headerlink" href="#id15" title="Link to this heading">#</a></h3>
+<pre  class="mermaid">
+        sequenceDiagram
+    participant C as Client
+    participant S as Server (handle_client)
+    participant B as Broadcast Channel
+    participant R as ChatRoom
+
+    C-&gt;&gt;S: TCP connect
+    S-&gt;&gt;C: &quot;Enter your username:&quot;
+    C-&gt;&gt;S: &quot;Walter&quot;
+    S-&gt;&gt;R: add_user(&quot;Walter&quot;)
+    R--&gt;&gt;S: true (success)
+    S-&gt;&gt;B: Message::Join
+    B--&gt;&gt;S: (broadcast to all)
+    S-&gt;&gt;C: &quot;Welcome, Walter!&quot;
+
+    loop Chat
+        C-&gt;&gt;S: &quot;Hello!&quot;
+        S-&gt;&gt;B: Message::Chat
+        B--&gt;&gt;S: (broadcast to all)
+        Note over S: 不回显给发送者
+    end
+
+    C-&gt;&gt;S: &quot;/quit&quot;
+    S-&gt;&gt;R: remove_user(&quot;Walter&quot;)
+    S-&gt;&gt;B: Message::Leave
+    Note over S: Task 结束
+    </pre></section>
+</section>
+<hr class="docutils" />
+<section id="id16">
+<h2>9.8 知识点总结与映射<a class="headerlink" href="#id16" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>章节</p></th>
+<th class="head"><p>知识点</p></th>
+<th class="head"><p>在项目中的应用</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>ch03</strong> 所有权</p></td>
+<td><p>move 语义、clone</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">username.clone()</span></code> 给不同的 spawn 任务</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>ch04</strong> 借用</p></td>
+<td><p>引用、生命周期</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&amp;str</span></code> 参数、<code class="docutils literal notranslate"><span class="pre">&amp;self</span></code> 方法</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>ch05</strong> 结构体/枚举</p></td>
+<td><p>枚举 + 关联数据、impl</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Message</span></code> 枚举、<code class="docutils literal notranslate"><span class="pre">ChatRoom</span></code> 结构体</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>ch06</strong> Trait</p></td>
+<td><p>Display、From、Error</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">impl</span> <span class="pre">Display</span> <span class="pre">for</span> <span class="pre">Message</span></code>、<code class="docutils literal notranslate"><span class="pre">impl</span> <span class="pre">Error</span> <span class="pre">for</span> <span class="pre">ProtocolError</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><strong>ch07</strong> 错误处理</p></td>
+<td><p>Result、?、anyhow</p></td>
+<td><p>所有 I/O 操作的错误传播</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>ch08</strong> 异步</p></td>
+<td><p>async/await、spawn、select!、channel、Arc+Mutex</p></td>
+<td><p>整个服务器和客户端的并发架构</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<hr class="docutils" />
+<section id="id17">
+<h2>9.9 扩展挑战<a class="headerlink" href="#id17" title="Link to this heading">#</a></h2>
+<p>如果你想进一步练习，可以尝试以下扩展：</p>
+<section id="id18">
+<h3>挑战 1：私聊功能<a class="headerlink" href="#id18" title="Link to this heading">#</a></h3>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// 添加私聊命令：/msg &lt;username&gt; &lt;content&gt;</span>
+<span class="c1">// 提示：在 Message 枚举中添加 DirectMessage 变体</span>
+<span class="c1">// 在服务器端根据目标用户名过滤发送</span>
+</pre></div>
+</div>
+</section>
+<section id="id19">
+<h3>挑战 2：聊天记录持久化<a class="headerlink" href="#id19" title="Link to this heading">#</a></h3>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// 将聊天记录保存到文件</span>
+<span class="c1">// 提示：使用 tokio::fs::OpenOptions 异步写入</span>
+<span class="c1">// 新用户加入时发送最近 N 条历史消息</span>
+</pre></div>
+</div>
+</section>
+<section id="json">
+<h3>挑战 3：JSON 协议<a class="headerlink" href="#json" title="Link to this heading">#</a></h3>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// 将文本协议替换为 JSON</span>
+<span class="c1">// 提示：使用 serde_json 序列化/反序列化 Message</span>
+<span class="c1">// 这为后续与 Tauri 前端对接做准备</span>
+</pre></div>
+</div>
+</section>
+<section id="id20">
+<h3>挑战 4：心跳检测<a class="headerlink" href="#id20" title="Link to this heading">#</a></h3>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// 定期发送心跳包，检测断线的客户端</span>
+<span class="c1">// 提示：使用 tokio::time::interval + tokio::select!</span>
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id21">
+<h2>9.10 本章小结<a class="headerlink" href="#id21" title="Link to this heading">#</a></h2>
+<p>在这一章中，我们从零构建了一个完整的 CLI 聊天室，综合运用了 Rust 的核心特性：</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>成就</p></th>
+<th class="head"><p>描述</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>✅ <strong>所有权实战</strong></p></td>
+<td><p>理解了 move 闭包、Arc 共享、clone 的使用场景</p></td>
+</tr>
+<tr class="row-odd"><td><p>✅ <strong>类型系统实战</strong></p></td>
+<td><p>用枚举建模消息协议，用结构体管理状态</p></td>
+</tr>
+<tr class="row-even"><td><p>✅ <strong>Trait 实战</strong></p></td>
+<td><p>为自定义类型实现 Display、Error 等标准 trait</p></td>
+</tr>
+<tr class="row-odd"><td><p>✅ <strong>错误处理实战</strong></p></td>
+<td><p>在真实的 I/O 场景中使用 Result + ? + anyhow</p></td>
+</tr>
+<tr class="row-even"><td><p>✅ <strong>异步编程实战</strong></p></td>
+<td><p>tokio::spawn、broadcast channel、select! 的实际应用</p></td>
+</tr>
+<tr class="row-odd"><td><p>✅ <strong>项目组织</strong></p></td>
+<td><p>多模块项目结构、关注点分离</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<blockquote>
+<div><p><strong>这个聊天室虽然简单，但它的架构模式——事件广播、异步任务、共享状态——正是 Tauri 桌面应用后端的核心模式。</strong> 在后续章节中，我们会把这些模式直接应用到 Tauri 的 IPC 通信、状态管理和插件系统中。</p>
+</div></blockquote>
+<hr class="docutils" />
+<blockquote>
+<div><p><strong>Part 1 完结！</strong> 🎉 恭喜你完成了 Rust 速成的全部内容。从下一章开始，我们将进入 Part 2——Tauri 框架深度解析，把 Rust 的力量带到桌面应用开发中。</p>
+</div></blockquote>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="ch08.html"
+       title="上一页">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">上一页</p>
+        <p class="prev-next-title">第八章 异步编程：从线程到 async/await</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="ch10.html"
+       title="下一页">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">下一页</p>
+        <p class="prev-next-title">第十章 Tauri 架构全景</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> 目录
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id1">9.1 项目规划</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id2">9.1.1 功能需求</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id3">9.1.2 技术选型</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id4">9.1.3 项目结构</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id5">9.1.4 知识点覆盖</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id6">9.2 消息协议</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#protocol-rs">9.2.1 protocol.rs</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id7">9.3 聊天服务器</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#server-rs">9.3.1 server.rs</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id8">9.4 聊天客户端</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#client-rs">9.4.1 client.rs</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id9">9.5 主入口</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#main-rs">9.5.1 main.rs</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#cargo-toml">9.5.2 Cargo.toml</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id10">9.6 运行与测试</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id11">9.6.1 启动服务器</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id12">9.6.2 启动客户端（开多个终端）</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id13">9.6.3 完整对话示例</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id14">9.7 架构回顾</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id15">9.7.1 每个连接的生命周期</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id16">9.8 知识点总结与映射</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id17">9.9 扩展挑战</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id18">挑战 1：私聊功能</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id19">挑战 2：聊天记录持久化</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#json">挑战 3：JSON 协议</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id20">挑战 4：心跳检测</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id21">9.10 本章小结</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+作者： Walter Fan
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2026, Walter Fan.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

@@ -1,0 +1,1862 @@
+
+<!DOCTYPE html>
+
+
+<html lang="zh-CN" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>第四章 所有权系统：Rust 的灵魂 &#8212; Tauri + Rust 客户端架构</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../_static/documentation_options.js?v=327b96ba"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=f281be69"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script src="../_static/translations.js?v=beaddf03"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.esm.min.mjs"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.2.0/dist/mermaid-layout-elk.esm.min.mjs"></script>
+    <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.esm.min.mjs";import elkLayouts from "https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.2.0/dist/mermaid-layout-elk.esm.min.mjs";mermaid.registerLayoutLoaders(elkLayouts);mermaid.initialize({startOnLoad:false});</script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+    <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.esm.min.mjs";
+
+const defaultStyle = document.createElement('style');
+defaultStyle.textContent = `pre.mermaid {
+    /* Same as .mermaid-container > pre */
+    display: block;
+    width: 100%;
+}
+
+pre.mermaid > svg {
+    /* Same as .mermaid-container > pre > svg */
+    height: 500px;
+    width: 100%;
+    max-width: 100% !important;
+}
+`;
+document.head.appendChild(defaultStyle);
+
+const fullscreenStyle = document.createElement('style');
+fullscreenStyle.textContent = `.mermaid-container {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+}
+
+.mermaid-container > pre {
+    display: block;
+    width: 100%;
+}
+
+.mermaid-container > pre > svg {
+    height: 500px;
+    width: 100%;
+    max-width: 100% !important;
+}
+
+.mermaid-fullscreen-btn {
+    width: 28px;
+    height: 28px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    font-size: 14px;
+    line-height: 1;
+    padding: 0;
+    color: #333;
+}
+
+.mermaid-fullscreen-btn:hover {
+    opacity: 100% !important;
+    background: rgba(255, 255, 255, 1);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+    transform: scale(1.1);
+}
+
+.mermaid-fullscreen-btn.dark-theme {
+    background: rgba(50, 50, 50, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #e0e0e0;
+}
+
+.mermaid-fullscreen-btn.dark-theme:hover {
+    background: rgba(60, 60, 60, 1);
+    box-shadow: 0 3px 10px rgba(255, 255, 255, 0.2);
+}
+
+.mermaid-fullscreen-modal {
+    display: none;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 95vw;
+    height: 100vh;
+    background: rgba(255, 255, 255, 0.98);
+    z-index: 9999;
+    padding: 20px;
+    overflow: auto;
+}
+
+.mermaid-fullscreen-modal.dark-theme {
+    background: rgba(0, 0, 0, 0.98);
+}
+
+.mermaid-fullscreen-modal.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen {
+    position: relative;
+    width: 95vw;
+    height: 90vh;
+    max-width: 95vw;
+    max-height: 90vh;
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen.dark-theme {
+    background: #1a1a1a;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+}
+
+.mermaid-container-fullscreen pre.mermaid {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen .mermaid svg {
+    height: 100% !important;
+    width: 100% !important;
+    cursor: grab;
+}
+
+.mermaid-fullscreen-close {
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s;
+    font-size: 24px;
+    line-height: 1;
+    color: #333;
+}
+
+.mermaid-fullscreen-close:hover {
+    background: white;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+    transform: scale(1.1);
+}
+
+.mermaid-fullscreen-close.dark-theme {
+    background: rgba(50, 50, 50, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #e0e0e0;
+}
+
+.mermaid-fullscreen-close.dark-theme:hover {
+    background: rgba(60, 60, 60, 1);
+    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);
+}
+
+.mermaid-fullscreen-modal .mermaid-fullscreen-btn {
+    display: none !important;
+}`;
+document.head.appendChild(fullscreenStyle);
+
+// Detect if page has dark background
+const isDarkTheme = () => {
+    const bgColor = window.getComputedStyle(document.body).backgroundColor;
+    const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        return brightness < 128;
+    }
+    return false;
+};
+
+const load = async () => {
+    await mermaid.run();
+
+    const all_mermaids = document.querySelectorAll(".mermaid");
+    const mermaids_processed = document.querySelectorAll(".mermaid[data-processed='true']");
+
+    if ("False" === "True") {
+        const mermaids_to_add_zoom = -1 === -1 ? all_mermaids.length : -1;
+        if(mermaids_to_add_zoom > 0) {
+            var svgs = d3.selectAll("");
+            if(all_mermaids.length !== mermaids_processed.length) {
+                setTimeout(load, 200);
+                return;
+            } else if(svgs.size() !== mermaids_to_add_zoom) {
+                setTimeout(load, 200);
+                return;
+            } else {
+                svgs.each(function() {
+                    var svg = d3.select(this);
+                    svg.html("<g class='wrapper'>" + svg.html() + "</g>");
+                    var inner = svg.select("g");
+                    var zoom = d3.zoom().on("zoom", function(event) {
+                        inner.attr("transform", event.transform);
+                    });
+                    svg.call(zoom);
+                });
+            }
+        }
+    } else if(all_mermaids.length !== mermaids_processed.length) {
+        // Wait for mermaid to process all diagrams
+        setTimeout(load, 200);
+        return;
+    }
+
+    const darkTheme = isDarkTheme();
+
+    // Stop here if not adding fullscreen capability
+    if ("True" !== "True") return;
+
+    const modal = document.createElement('div');
+    modal.className = 'mermaid-fullscreen-modal' + (darkTheme ? ' dark-theme' : '');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Fullscreen diagram viewer');
+    modal.innerHTML = `
+        <button class="mermaid-fullscreen-close${darkTheme ? ' dark-theme' : ''}" aria-label="Close fullscreen">✕</button>
+        <div class="mermaid-container-fullscreen${darkTheme ? ' dark-theme' : ''}"></div>
+    `;
+    document.body.appendChild(modal);
+
+    const modalContent = modal.querySelector('.mermaid-container-fullscreen');
+    const closeBtn = modal.querySelector('.mermaid-fullscreen-close');
+
+    let previousScrollOffset = [window.scrollX, window.scrollY];
+
+    const closeModal = () => {
+        modal.classList.remove('active');
+        modalContent.innerHTML = '';
+        document.body.style.overflow = ''
+        window.scrollTo({left: previousScrollOffset[0], top: previousScrollOffset[1], behavior: 'instant'});
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('active')) {
+            closeModal();
+        }
+    });
+
+    const allButtons = [];
+
+    document.querySelectorAll('.mermaid').forEach((mermaidDiv) => {
+        if (mermaidDiv.parentNode.classList.contains('mermaid-container') ||
+            mermaidDiv.closest('.mermaid-fullscreen-modal')) {
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+        mermaidDiv.parentNode.insertBefore(container, mermaidDiv);
+        container.appendChild(mermaidDiv);
+
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+        fullscreenBtn.setAttribute('aria-label', 'View diagram in fullscreen');
+        fullscreenBtn.textContent = '⛶';
+        fullscreenBtn.style.opacity = '50%';
+
+        // Calculate dynamic position based on diagram's margin and padding
+        const diagramStyle = window.getComputedStyle(mermaidDiv);
+        const marginTop = parseFloat(diagramStyle.marginTop) || 0;
+        const marginRight = parseFloat(diagramStyle.marginRight) || 0;
+        const paddingTop = parseFloat(diagramStyle.paddingTop) || 0;
+        const paddingRight = parseFloat(diagramStyle.paddingRight) || 0;
+        fullscreenBtn.style.top = `${marginTop + paddingTop + 4}px`;
+        fullscreenBtn.style.right = `${marginRight + paddingRight + 4}px`;
+
+        fullscreenBtn.addEventListener('click', () => {
+            previousScrollOffset = [window.scroll, window.scrollY];
+            const clone = mermaidDiv.cloneNode(true);
+            modalContent.innerHTML = '';
+            modalContent.appendChild(clone);
+
+            const svg = clone.querySelector('svg');
+            if (svg) {
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+                svg.style.width = '100%';
+                svg.style.height = 'auto';
+                svg.style.maxWidth = '100%';
+                svg.style.sdisplay = 'block';
+
+                if ("False" === "True") {
+                    setTimeout(() => {
+                        const g = svg.querySelector('g');
+                        if (g) {
+                            var svgD3 = d3.select(svg);
+                            svgD3.html("<g class='wrapper'>" + svgD3.html() + "</g>");
+                            var inner = svgD3.select("g");
+                            var zoom = d3.zoom().on("zoom", function(event) {
+                                inner.attr("transform", event.transform);
+                            });
+                            svgD3.call(zoom);
+                        }
+                    }, 100);
+                }
+            }
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+
+        container.appendChild(fullscreenBtn);
+        allButtons.push(fullscreenBtn);
+    });
+
+    // Update theme classes when theme changes
+    const updateTheme = () => {
+        const dark = isDarkTheme();
+        allButtons.forEach(btn => {
+            if (dark) {
+                btn.classList.add('dark-theme');
+            } else {
+                btn.classList.remove('dark-theme');
+            }
+        });
+        if (dark) {
+            modal.classList.add('dark-theme');
+            modalContent.classList.add('dark-theme');
+            closeBtn.classList.add('dark-theme');
+        } else {
+            modal.classList.remove('dark-theme');
+            modalContent.classList.remove('dark-theme');
+            closeBtn.classList.remove('dark-theme');
+        }
+    };
+
+    // Watch for theme changes
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+    observer.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class', 'style']
+    });
+};
+
+window.addEventListener("load", load);
+</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'chapters/ch04';</script>
+    <link rel="index" title="索引" href="../genindex.html" />
+    <link rel="search" title="搜索" href="../search.html" />
+    <link rel="next" title="第五章 结构体、枚举与模块系统" href="ch05.html" />
+    <link rel="prev" title="第三章 Rust 基础语法速览" href="ch03.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="zh-CN"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">跳转至主要内容</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>回到顶部</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="版本警告"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">Tauri + Rust 客户端架构</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="搜索" aria-label="搜索" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">搜索</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 0 · 开场</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="ch01.html">第一章 客户端架构的前世今生</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch02.html">第二章 五分钟跑起第一个 Tauri 应用</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 1 · Rust 速成</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="ch03.html">第三章 Rust 基础语法速览</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">第四章 所有权系统：Rust 的灵魂</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch05.html">第五章 结构体、枚举与模块系统</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch06.html">第六章 Trait 与泛型：Rust 的多态</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch07.html">第七章 错误处理的艺术</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch08.html">第八章 异步编程：从线程到 async/await</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch09.html">第九章 Rust 实战小项目：CLI 聊天室</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 2 · Tauri 深度</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="ch10.html">第十章 Tauri 架构全景</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch11.html">第十一章 前后端通信：IPC 深度解析</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch12.html">第十二章 前端集成：选择你的武器</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch13.html">第十三章 数据持久化：从文件到 SQLite</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch14.html">第十四章 网络与 API 调用</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch15.html">第十五章 实时通信：WebSocket 与群聊</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch16.html">第十六章 原生能力：托盘、通知、快捷键、剪贴板</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch17.html">第十七章 安全加固</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 3 · 高级实践</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="ch18.html">第十八章 插件开发</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch19.html">第十九章 测试策略</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch20.html">第二十章 性能优化</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch21.html">第二十一章 多平台打包与发布</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch22.html">第二十二章 架构模式与最佳实践</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 4 · 结语与参考</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="ch23.html">第二十三章 未来展望</a></li>
+<li class="toctree-l1"><a class="reference internal" href="appendix-a.html">附录 A Rust 速查表</a></li>
+<li class="toctree-l1"><a class="reference internal" href="appendix-b.html">附录 B Tauri CLI 参考</a></li>
+<li class="toctree-l1"><a class="reference internal" href="appendix-c.html">附录 C 推荐资源</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+<a href="https://github.com/walterfan/walter-rust-tauri-book" target="_blank"
+   class="btn btn-sm btn-source-repository-button"
+   title="源码库"
+   data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+
+</a>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="下载此页面">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/chapters/ch04.md" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="下载源文件"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="列印成 PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="全屏模式"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="亮色"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="暗色"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="搜索" aria-label="搜索" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>第四章 所有权系统：Rust 的灵魂</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> 目录 </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id1">4.1 为什么需要所有权？</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id2">4.1.1 内存管理的三条路</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#c">4.1.2 C++ 工程师的痛</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id3">4.2 所有权三原则</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#move-semantics">4.3 移动语义（Move Semantics）</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#vs">4.3.1 栈上数据 vs 堆上数据</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#move">4.3.2 移动（Move）</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id4">4.3.3 与 C++ 移动语义的对比</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#copy">4.3.4 Copy 类型</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#clone">4.3.5 Clone：显式深拷贝</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id5">4.4 函数与所有权</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id6">4.4.1 传参即移动</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id7">4.4.2 返回值转移所有权</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#borrowing-references">4.5 借用与引用（Borrowing &amp; References）</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#t">4.5.1 不可变引用（&amp;T）</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mut-t">4.5.2 可变引用（&amp;mut T）</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id8">4.5.3 借用规则</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id9">4.5.4 悬垂引用的编译期防护</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#lifetimes">4.6 生命周期（Lifetimes）</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id10">4.6.1 什么是生命周期？</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id11">4.6.2 生命周期标注语法</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id12">4.6.3 生命周期省略规则</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id13">4.6.4 结构体中的生命周期</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id14">4.6.5 静态生命周期</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tauri">4.7 实战：所有权在 Tauri 中的体现</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id15">4.7.1 Tauri 命令中的所有权</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id16">4.7.2 状态管理中的所有权</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id17">4.7.3 所有权与异步</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id18">4.8 常见所有权错误与解决方案</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id19">4.8.1 错误清单</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id20">4.8.2 实用技巧</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id21">4.9 小结</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id22">扩展阅读</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="rust">
+<h1>第四章 所有权系统：Rust 的灵魂<a class="headerlink" href="#rust" title="Link to this heading">#</a></h1>
+<blockquote>
+<div><p><em>&quot;The ownership system is Rust's most unique and compelling feature.&quot;</em>
+— The Rust Programming Language</p>
+</div></blockquote>
+<p>如果说 Rust 只能用一个特性来定义自己，那一定是<strong>所有权系统（Ownership System）</strong>。它是 Rust 在不使用垃圾回收器（GC）的前提下保证内存安全的核心机制，也是大多数初学者的第一道&quot;拦路虎&quot;。</p>
+<p>本章将系统讲解所有权、移动语义、借用、生命周期四大核心概念，并持续与 C++ 的 RAII/智能指针以及 Java 的 GC 做对比，帮助你从已有经验中建立直觉。</p>
+<pre  class="mermaid">
+        mindmap
+  root((所有权系统))
+    所有权三规则
+      一个 owner
+      离开作用域释放
+      move 语义
+    借用
+      不可变引用
+      可变引用
+      借用检查器
+    生命周期
+      引用有效性
+      显式标注
+      编译期验证
+    对比
+      C++ RAII
+      Java GC
+      Rust 无 GC
+    </pre><hr class="docutils" />
+<section id="id1">
+<h2>4.1 为什么需要所有权？<a class="headerlink" href="#id1" title="Link to this heading">#</a></h2>
+<section id="id2">
+<h3>4.1.1 内存管理的三条路<a class="headerlink" href="#id2" title="Link to this heading">#</a></h3>
+<p>在编程语言的历史中，内存管理大致有三种流派：</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>┌─────────────────────────────────────────────────────────┐
+│              内存管理的三条路                              │
+├──────────────┬──────────────┬───────────────────────────┤
+│  手动管理     │  垃圾回收     │  所有权系统               │
+│  (C/C++)     │  (Java/Go)   │  (Rust)                   │
+├──────────────┼──────────────┼───────────────────────────┤
+│ malloc/free  │ GC 自动回收   │ 编译期静态检查             │
+│ new/delete   │ 运行时开销    │ 零运行时开销              │
+│ 容易出错      │ 暂停(STW)    │ 学习曲线陡峭              │
+│ 悬垂指针      │ 无法精确控制  │ 编译期保证安全             │
+│ 内存泄漏      │ 内存占用高    │ 无 GC、无泄漏*            │
+└──────────────┴──────────────┴───────────────────────────┘
+  * 循环引用仍可能导致逻辑上的&quot;泄漏&quot;，但不会有未定义行为
+</pre></div>
+</div>
+<p>C/C++ 给了程序员完全的控制权，但也带来了 use-after-free、double-free、dangling pointer 等经典 bug。Java/Go 通过 GC 解决了这些问题，但引入了运行时开销和不可预测的暂停。</p>
+<p>Rust 走了第三条路：<strong>在编译期通过所有权规则检查内存安全，运行时零开销。</strong></p>
+</section>
+<section id="c">
+<h3>4.1.2 C++ 工程师的痛<a class="headerlink" href="#c" title="Link to this heading">#</a></h3>
+<p>如果你写过 C++，以下场景一定不陌生：</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="c1">// C++ 经典 bug：use-after-free</span>
+<span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;*</span><span class="w"> </span><span class="n">create_vector</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">};</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="o">&amp;</span><span class="n">v</span><span class="p">;</span><span class="w">  </span><span class="c1">// ❌ 返回局部变量的指针！</span>
+<span class="p">}</span>
+
+<span class="c1">// C++ 经典 bug：double-free</span>
+<span class="kt">void</span><span class="w"> </span><span class="n">double_free</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="o">*</span><span class="w"> </span><span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="kt">int</span><span class="p">(</span><span class="mi">42</span><span class="p">);</span>
+<span class="w">    </span><span class="kt">int</span><span class="o">*</span><span class="w"> </span><span class="n">q</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">p</span><span class="p">;</span>
+<span class="w">    </span><span class="k">delete</span><span class="w"> </span><span class="n">p</span><span class="p">;</span>
+<span class="w">    </span><span class="k">delete</span><span class="w"> </span><span class="n">q</span><span class="p">;</span><span class="w">  </span><span class="c1">// ❌ double free!</span>
+<span class="p">}</span>
+
+<span class="c1">// C++ 经典 bug：悬垂引用</span>
+<span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&amp;</span><span class="w"> </span><span class="n">dangling</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;hello&quot;</span><span class="p">;</span>
+<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">s</span><span class="p">;</span><span class="w">  </span><span class="c1">// ❌ 返回局部变量的引用！</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>这些 bug 在 C++ 中都能编译通过（最多一个 warning），只有在运行时才会暴露。而在 Rust 中，<strong>这些代码根本无法通过编译</strong>。</p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id3">
+<h2>4.2 所有权三原则<a class="headerlink" href="#id3" title="Link to this heading">#</a></h2>
+<p>Rust 的所有权系统建立在三条简单的规则之上：</p>
+<blockquote>
+<div><p><strong>规则一：</strong> Rust 中的每一个值都有一个<strong>所有者（owner）</strong>。
+<strong>规则二：</strong> 值在任一时刻有且仅有<strong>一个</strong>所有者。
+<strong>规则三：</strong> 当所有者离开作用域，值将被<strong>丢弃（drop）</strong>。</p>
+</div></blockquote>
+<p>这三条规则要一起理解。第一条回答“谁负责释放资源”，第二条回答“谁有权释放资源”，第三条回答“什么时候释放资源”。Rust 不允许两个变量同时拥有同一块堆内存，因为那会让释放责任变得含糊；也不允许没有所有者的值继续存在，因为那会造成泄漏或悬垂访问。</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">from</span><span class="p">(</span><span class="s">&quot;hello&quot;</span><span class="p">);</span><span class="w">  </span><span class="c1">// s 是 &quot;hello&quot; 的所有者</span>
+<span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">);</span><span class="w">               </span><span class="c1">// s 在作用域内，可以使用</span>
+<span class="w">    </span><span class="p">}</span><span class="w">                                    </span><span class="c1">// s 离开作用域，String 被 drop，内存被释放</span>
+<span class="w">    </span><span class="c1">// println!(&quot;{}&quot;, s);               // ❌ 编译错误！s 已不存在</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>与 C++ RAII 的对比：</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>┌──────────────────────────────────────────────────────┐
+│  C++ RAII                    Rust Ownership           │
+│  ─────────                   ──────────────           │
+│  构造函数获取资源              let 绑定获取所有权        │
+│  析构函数释放资源              drop 释放资源             │
+│  可以拷贝（浅拷贝/深拷贝）     默认 move，显式 clone     │
+│  智能指针辅助管理              所有权规则强制执行         │
+│  运行时检查（sanitizer）      编译期检查（borrow checker）│
+└──────────────────────────────────────────────────────┘
+</pre></div>
+</div>
+<p>Rust 的所有权本质上是 <strong>RAII 的编译期强制版</strong>。C++ 中 RAII 是一种&quot;最佳实践&quot;，程序员可以绕过它；Rust 中所有权是语言规则，编译器强制执行。</p>
+<p>一个实用判断法是：<strong>看到赋值、传参、返回值，就问自己所有权有没有移动。</strong></p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span><span class="w"> </span><span class="nf">consume</span><span class="p">(</span><span class="n">name</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;hello, {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">name</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">fn</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">from</span><span class="p">(</span><span class="s">&quot;Tauri&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">alias</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">name</span><span class="p">;</span><span class="w">       </span><span class="c1">// String 不是 Copy，所有权从 name 移动到 alias</span>
+<span class="w">    </span><span class="n">consume</span><span class="p">(</span><span class="n">alias</span><span class="p">);</span><span class="w">         </span><span class="c1">// 所有权继续移动到函数参数 name</span>
+
+<span class="w">    </span><span class="c1">// println!(&quot;{}&quot;, name);  // ❌ name 已经失效</span>
+<span class="w">    </span><span class="c1">// println!(&quot;{}&quot;, alias); // ❌ alias 也已经移动进 consume</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>如果你只是“看一眼”数据，不要拿走所有权，改用引用：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span><span class="w"> </span><span class="nf">inspect</span><span class="p">(</span><span class="n">name</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;hello, {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">name</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">fn</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">from</span><span class="p">(</span><span class="s">&quot;Tauri&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">inspect</span><span class="p">(</span><span class="o">&amp;</span><span class="n">name</span><span class="p">);</span><span class="w">          </span><span class="c1">// 借用 name 的内容</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">name</span><span class="p">);</span><span class="w">    </span><span class="c1">// ✓ 所有权仍在 main 中</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>这也是 Rust API 设计的基本原则：<strong>需要长期保存或跨线程/异步边界使用时接收拥有所有权的类型；只需要临时读取时接收引用。</strong></p>
+</section>
+<hr class="docutils" />
+<section id="move-semantics">
+<h2>4.3 移动语义（Move Semantics）<a class="headerlink" href="#move-semantics" title="Link to this heading">#</a></h2>
+<section id="vs">
+<h3>4.3.1 栈上数据 vs 堆上数据<a class="headerlink" href="#vs" title="Link to this heading">#</a></h3>
+<p>要理解移动语义，首先要区分栈上数据和堆上数据：</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>栈（Stack）                    堆（Heap）
+┌──────────┐                  ┌──────────────────┐
+│ s1       │                  │                  │
+│ ┌──────┐ │    ptr ────────► │ h  e  l  l  o    │
+│ │ ptr  │ │                  │                  │
+│ │ len:5│ │                  └──────────────────┘
+│ │cap:5 │ │
+│ └──────┘ │
+└──────────┘
+
+  String 的内存布局：
+  - 栈上：指针 + 长度 + 容量（3 个 usize，共 24 字节）
+  - 堆上：实际的 UTF-8 字节数据
+</pre></div>
+</div>
+</section>
+<section id="move">
+<h3>4.3.2 移动（Move）<a class="headerlink" href="#move" title="Link to this heading">#</a></h3>
+<p>当你将一个 <code class="docutils literal notranslate"><span class="pre">String</span></code> 赋值给另一个变量时，Rust 执行的是<strong>移动</strong>，而不是拷贝：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">s1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">from</span><span class="p">(</span><span class="s">&quot;hello&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">s2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s1</span><span class="p">;</span><span class="w">  </span><span class="c1">// s1 的所有权 移动 到 s2</span>
+<span class="w">    </span>
+<span class="w">    </span><span class="c1">// println!(&quot;{}&quot;, s1);  // ❌ 编译错误！value borrowed here after move</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">s2</span><span class="p">);</span><span class="w">     </span><span class="c1">// ✓ OK，s2 是新的所有者</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>移动之后的内存状态：</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>  移动前：                        移动后：
+  s1 ──► [ptr|len|cap]           s1 （已失效，不可使用）
+              │
+              ▼                   s2 ──► [ptr|len|cap]
+         &quot;hello&quot;                              │
+                                              ▼
+                                         &quot;hello&quot;
+</pre></div>
+</div>
+<p><strong>为什么不是拷贝？</strong> 如果 <code class="docutils literal notranslate"><span class="pre">s2</span> <span class="pre">=</span> <span class="pre">s1</span></code> 只是浅拷贝（复制栈上的指针），那 <code class="docutils literal notranslate"><span class="pre">s1</span></code> 和 <code class="docutils literal notranslate"><span class="pre">s2</span></code> 会指向同一块堆内存。当两者都离开作用域时，同一块内存会被释放两次——这就是 C++ 中经典的 <strong>double-free</strong> 问题。</p>
+<p>Rust 的解决方案很优雅：<strong>移动后，原变量立即失效。</strong> 编译器保证你不会再使用它。</p>
+</section>
+<section id="id4">
+<h3>4.3.3 与 C++ 移动语义的对比<a class="headerlink" href="#id4" title="Link to this heading">#</a></h3>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="c1">// C++ 移动语义（C++11）</span>
+<span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">s1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;hello&quot;</span><span class="p">;</span>
+<span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">s2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">move</span><span class="p">(</span><span class="n">s1</span><span class="p">);</span><span class="w">  </span><span class="c1">// 显式移动</span>
+<span class="c1">// s1 仍然有效！只是处于&quot;有效但未指定&quot;状态</span>
+<span class="c1">// 你可以继续使用 s1，但它的值是不确定的 —— 这是 bug 的温床</span>
+</pre></div>
+</div>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// Rust 移动语义</span>
+<span class="kd">let</span><span class="w"> </span><span class="n">s1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">from</span><span class="p">(</span><span class="s">&quot;hello&quot;</span><span class="p">);</span>
+<span class="kd">let</span><span class="w"> </span><span class="n">s2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s1</span><span class="p">;</span><span class="w">  </span><span class="c1">// 隐式移动</span>
+<span class="c1">// s1 已失效，编译器禁止你使用它 —— 零 bug 可能</span>
+</pre></div>
+</div>
+<p><strong>关键区别：</strong></p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>特性</p></th>
+<th class="head"><p>Rust</p></th>
+<th class="head"><p>C++</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>移动后原变量状态</p></td>
+<td><p><strong>编译期失效</strong>，无法使用</p></td>
+<td><p>&quot;有效但未指定&quot;，可以使用</p></td>
+</tr>
+<tr class="row-odd"><td><p>移动是否需要显式标记</p></td>
+<td><p>默认行为（对非 Copy 类型）</p></td>
+<td><p>需要 <code class="docutils literal notranslate"><span class="pre">std::move()</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>安全性</p></td>
+<td><p>编译期保证</p></td>
+<td><p>程序员自律</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="copy">
+<h3>4.3.4 Copy 类型<a class="headerlink" href="#copy" title="Link to this heading">#</a></h3>
+<p>并非所有类型都执行移动。对于简单的栈上数据（如整数、浮点数、布尔值），Rust 执行<strong>拷贝</strong>而非移动：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">y</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">x</span><span class="p">;</span><span class="w">  </span><span class="c1">// 拷贝，不是移动！</span>
+<span class="w">    </span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;x={}, y={}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="n">y</span><span class="p">);</span><span class="w">  </span><span class="c1">// ✓ 两个都可以使用</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>实现了 <code class="docutils literal notranslate"><span class="pre">Copy</span></code> trait 的类型会自动拷贝。以下类型默认实现了 <code class="docutils literal notranslate"><span class="pre">Copy</span></code>：</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>类型</p></th>
+<th class="head"><p>Copy?</p></th>
+<th class="head"><p>原因</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">i32</span></code>, <code class="docutils literal notranslate"><span class="pre">u64</span></code>, <code class="docutils literal notranslate"><span class="pre">f64</span></code> 等</p></td>
+<td><p>✅</p></td>
+<td><p>栈上固定大小，拷贝成本低</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">bool</span></code></p></td>
+<td><p>✅</p></td>
+<td><p>1 字节</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">char</span></code></p></td>
+<td><p>✅</p></td>
+<td><p>4 字节</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">(i32,</span> <span class="pre">i32)</span></code></p></td>
+<td><p>✅</p></td>
+<td><p>所有字段都是 Copy</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">String</span></code></p></td>
+<td><p>❌</p></td>
+<td><p>拥有堆内存，拷贝成本高</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Vec&lt;T&gt;</span></code></p></td>
+<td><p>❌</p></td>
+<td><p>拥有堆内存</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">&amp;T</span></code></p></td>
+<td><p>✅</p></td>
+<td><p>引用本身是指针大小，拷贝成本低</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<blockquote>
+<div><p><strong>规则：</strong> 如果一个类型的所有字段都实现了 <code class="docutils literal notranslate"><span class="pre">Copy</span></code>，你可以为它派生 <code class="docutils literal notranslate"><span class="pre">Copy</span></code>：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="cp">#[derive(Copy, Clone)]</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">Point</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">x</span><span class="p">:</span><span class="w"> </span><span class="kt">f64</span><span class="p">,</span>
+<span class="w">    </span><span class="n">y</span><span class="p">:</span><span class="w"> </span><span class="kt">f64</span><span class="p">,</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</div></blockquote>
+</section>
+<section id="clone">
+<h3>4.3.5 Clone：显式深拷贝<a class="headerlink" href="#clone" title="Link to this heading">#</a></h3>
+<p>当你确实需要深拷贝一个堆上的值时，使用 <code class="docutils literal notranslate"><span class="pre">clone()</span></code>：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">s1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">from</span><span class="p">(</span><span class="s">&quot;hello&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">s2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s1</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span><span class="w">  </span><span class="c1">// 显式深拷贝</span>
+<span class="w">    </span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;s1={}, s2={}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">s1</span><span class="p">,</span><span class="w"> </span><span class="n">s2</span><span class="p">);</span><span class="w">  </span><span class="c1">// ✓ 两个都可以使用</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>  clone 之后：
+  s1 ──► [ptr|len|cap] ──► &quot;hello&quot;  （堆上的第一份）
+  s2 ──► [ptr|len|cap] ──► &quot;hello&quot;  （堆上的第二份，独立副本）
+</pre></div>
+</div>
+<blockquote>
+<div><p><strong>性能提示：</strong> <code class="docutils literal notranslate"><span class="pre">clone()</span></code> 会分配新的堆内存并复制数据，是一个潜在的性能热点。在 Rust 中看到 <code class="docutils literal notranslate"><span class="pre">.clone()</span></code> 就像在 C++ 中看到 <code class="docutils literal notranslate"><span class="pre">new</span></code>——它提醒你这里有堆分配。</p>
+</div></blockquote>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id5">
+<h2>4.4 函数与所有权<a class="headerlink" href="#id5" title="Link to this heading">#</a></h2>
+<section id="id6">
+<h3>4.4.1 传参即移动<a class="headerlink" href="#id6" title="Link to this heading">#</a></h3>
+<p>将值传递给函数时，所有权也会转移：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span><span class="w"> </span><span class="nf">take_ownership</span><span class="p">(</span><span class="n">s</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;我拥有了: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">);</span>
+<span class="p">}</span><span class="w">   </span><span class="c1">// s 在这里被 drop</span>
+
+<span class="k">fn</span><span class="w"> </span><span class="nf">make_copy</span><span class="p">(</span><span class="n">x</span><span class="p">:</span><span class="w"> </span><span class="kt">i32</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;我拷贝了: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">x</span><span class="p">);</span>
+<span class="p">}</span><span class="w">   </span><span class="c1">// x 是 Copy 类型，没有特别的事情发生</span>
+
+<span class="k">fn</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">from</span><span class="p">(</span><span class="s">&quot;hello&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">take_ownership</span><span class="p">(</span><span class="n">s</span><span class="p">);</span><span class="w">       </span><span class="c1">// s 的所有权移动到函数内</span>
+<span class="w">    </span><span class="c1">// println!(&quot;{}&quot;, s);    // ❌ 编译错误！s 已被移动</span>
+
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">5</span><span class="p">;</span>
+<span class="w">    </span><span class="n">make_copy</span><span class="p">(</span><span class="n">x</span><span class="p">);</span><span class="w">            </span><span class="c1">// x 被拷贝</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;x = {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">x</span><span class="p">);</span><span class="w">  </span><span class="c1">// ✓ OK，x 仍然有效</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="id7">
+<h3>4.4.2 返回值转移所有权<a class="headerlink" href="#id7" title="Link to this heading">#</a></h3>
+<p>函数也可以通过返回值将所有权转移出去：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span><span class="w"> </span><span class="nf">create_string</span><span class="p">()</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">String</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">from</span><span class="p">(</span><span class="s">&quot;hello&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">s</span><span class="w">  </span><span class="c1">// 所有权移动给调用者</span>
+<span class="p">}</span>
+
+<span class="k">fn</span><span class="w"> </span><span class="nf">take_and_give_back</span><span class="p">(</span><span class="n">s</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">String</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;借我看看: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">);</span>
+<span class="w">    </span><span class="n">s</span><span class="w">  </span><span class="c1">// 还回去</span>
+<span class="p">}</span>
+
+<span class="k">fn</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">s1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">create_string</span><span class="p">();</span><span class="w">           </span><span class="c1">// s1 获得所有权</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">s2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">take_and_give_back</span><span class="p">(</span><span class="n">s1</span><span class="p">);</span><span class="w">    </span><span class="c1">// s1 移入，s2 接收返回值</span>
+<span class="w">    </span><span class="c1">// println!(&quot;{}&quot;, s1);              // ❌ s1 已被移动</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">s2</span><span class="p">);</span><span class="w">                 </span><span class="c1">// ✓ OK</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>但是，每次调用函数都要&quot;交出再拿回&quot;所有权，实在太麻烦了。这就引出了 Rust 最重要的概念之一——<strong>借用</strong>。</p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="borrowing-references">
+<h2>4.5 借用与引用（Borrowing &amp; References）<a class="headerlink" href="#borrowing-references" title="Link to this heading">#</a></h2>
+<section id="t">
+<h3>4.5.1 不可变引用（&amp;T）<a class="headerlink" href="#t" title="Link to this heading">#</a></h3>
+<p><strong>借用</strong>就是&quot;我借你看看，但所有权还是我的&quot;：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span><span class="w"> </span><span class="nf">calculate_length</span><span class="p">(</span><span class="n">s</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nb">String</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kt">usize</span><span class="w"> </span><span class="p">{</span><span class="w">  </span><span class="c1">// s 是 String 的引用</span>
+<span class="w">    </span><span class="n">s</span><span class="p">.</span><span class="n">len</span><span class="p">()</span>
+<span class="p">}</span><span class="w">   </span><span class="c1">// s 离开作用域，但它不拥有所指向的值，所以什么都不会发生</span>
+
+<span class="k">fn</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">s1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">from</span><span class="p">(</span><span class="s">&quot;hello&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">calculate_length</span><span class="p">(</span><span class="o">&amp;</span><span class="n">s1</span><span class="p">);</span><span class="w">  </span><span class="c1">// 传递引用，不转移所有权</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;&#39;{}&#39; 的长度是 {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">s1</span><span class="p">,</span><span class="w"> </span><span class="n">len</span><span class="p">);</span><span class="w">  </span><span class="c1">// ✓ s1 仍然有效！</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>  借用的内存模型：
+
+  main 栈帧               calculate_length 栈帧
+  ┌──────────┐            ┌──────────┐
+  │ s1       │            │ s (引用)  │
+  │ [ptr|5|5]│ ◄───────── │ [ptr]    │
+  └──────────┘            └──────────┘
+       │
+       ▼
+  &quot;hello&quot; (堆上)
+
+  s 只是一个指向 s1 的指针，不拥有数据
+</pre></div>
+</div>
+</section>
+<section id="mut-t">
+<h3>4.5.2 可变引用（&amp;mut T）<a class="headerlink" href="#mut-t" title="Link to this heading">#</a></h3>
+<p>如果需要通过引用修改数据，使用可变引用：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span><span class="w"> </span><span class="nf">append_world</span><span class="p">(</span><span class="n">s</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="nb">String</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">s</span><span class="p">.</span><span class="n">push_str</span><span class="p">(</span><span class="s">&quot;, world!&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">fn</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">from</span><span class="p">(</span><span class="s">&quot;hello&quot;</span><span class="p">);</span><span class="w">  </span><span class="c1">// 变量本身必须是 mut</span>
+<span class="w">    </span><span class="n">append_world</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">s</span><span class="p">);</span><span class="w">               </span><span class="c1">// 传递可变引用</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">);</span><span class="w">                   </span><span class="c1">// 输出: hello, world!</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="id8">
+<h3>4.5.3 借用规则<a class="headerlink" href="#id8" title="Link to this heading">#</a></h3>
+<p>Rust 的借用检查器（borrow checker）执行两条核心规则：</p>
+<blockquote>
+<div><p><strong>规则一：</strong> 在任意给定时刻，你可以拥有<strong>一个可变引用</strong>或<strong>任意数量的不可变引用</strong>（二选一）。
+<strong>规则二：</strong> 引用必须始终有效（不能悬垂）。</p>
+</div></blockquote>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">from</span><span class="p">(</span><span class="s">&quot;hello&quot;</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// ✓ 多个不可变引用可以共存</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">r1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">s</span><span class="p">;</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">r2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">s</span><span class="p">;</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{} and {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">r1</span><span class="p">,</span><span class="w"> </span><span class="n">r2</span><span class="p">);</span>
+<span class="w">    </span><span class="c1">// r1 和 r2 在这之后不再使用（NLL: Non-Lexical Lifetimes）</span>
+
+<span class="w">    </span><span class="c1">// ✓ 此时可以创建可变引用（因为 r1, r2 已经&quot;过期&quot;）</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">r3</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="n">s</span><span class="p">;</span>
+<span class="w">    </span><span class="n">r3</span><span class="p">.</span><span class="n">push_str</span><span class="p">(</span><span class="s">&quot;, world!&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">r3</span><span class="p">);</span>
+
+<span class="w">    </span><span class="c1">// ❌ 不可变引用和可变引用不能同时存在</span>
+<span class="w">    </span><span class="c1">// let r4 = &amp;s;</span>
+<span class="w">    </span><span class="c1">// let r5 = &amp;mut s;</span>
+<span class="w">    </span><span class="c1">// println!(&quot;{} {}&quot;, r4, r5);  // 编译错误！</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>为什么要这样？</strong> 这是 Rust 在编译期防止<strong>数据竞争</strong>的核心机制：</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>数据竞争的三个必要条件：
+  1. 两个或更多指针同时访问同一数据
+  2. 至少有一个指针在写入
+  3. 没有同步机制
+
+Rust 的借用规则直接消除了条件 1+2 的组合：
+  - 多个读取者（&amp;T）：✓ 安全，没有写入
+  - 一个写入者（&amp;mut T）：✓ 安全，没有其他访问者
+  - 读取者 + 写入者：✗ 编译器拒绝
+</pre></div>
+</div>
+<p><strong>三语对照 — 引用/指针：</strong></p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>概念</p></th>
+<th class="head"><p>Rust</p></th>
+<th class="head"><p>C++</p></th>
+<th class="head"><p>Java</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>不可变引用</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&amp;T</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">T&amp;</span></code> / <code class="docutils literal notranslate"><span class="pre">const</span> <span class="pre">T*</span></code></p></td>
+<td><p>默认行为（引用语义）</p></td>
+</tr>
+<tr class="row-odd"><td><p>可变引用</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&amp;mut</span> <span class="pre">T</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">T&amp;</span></code> / <code class="docutils literal notranslate"><span class="pre">T*</span></code></p></td>
+<td><p>默认行为</p></td>
+</tr>
+<tr class="row-even"><td><p>空引用</p></td>
+<td><p><strong>不存在</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">nullptr</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">null</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>悬垂引用</p></td>
+<td><p><strong>编译期禁止</strong></p></td>
+<td><p>运行时 UB</p></td>
+<td><p>GC 防止</p></td>
+</tr>
+<tr class="row-even"><td><p>并发安全</p></td>
+<td><p><strong>编译期保证</strong></p></td>
+<td><p>程序员负责</p></td>
+<td><p>synchronized</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id9">
+<h3>4.5.4 悬垂引用的编译期防护<a class="headerlink" href="#id9" title="Link to this heading">#</a></h3>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// ❌ 这段代码无法编译！</span>
+<span class="k">fn</span><span class="w"> </span><span class="nf">dangle</span><span class="p">()</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kp">&amp;</span><span class="nb">String</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">from</span><span class="p">(</span><span class="s">&quot;hello&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="o">&amp;</span><span class="n">s</span><span class="w">  </span><span class="c1">// s 在函数结束时被 drop，返回的引用将指向无效内存</span>
+<span class="p">}</span>
+<span class="c1">// error[E0106]: missing lifetime specifier</span>
+<span class="c1">// 实际上编译器会告诉你：这个引用的生命周期不够长</span>
+
+<span class="c1">// ✓ 正确做法：返回所有权</span>
+<span class="k">fn</span><span class="w"> </span><span class="nf">no_dangle</span><span class="p">()</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">String</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">from</span><span class="p">(</span><span class="s">&quot;hello&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="n">s</span><span class="w">  </span><span class="c1">// 所有权移动给调用者，没有悬垂引用</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="lifetimes">
+<h2>4.6 生命周期（Lifetimes）<a class="headerlink" href="#lifetimes" title="Link to this heading">#</a></h2>
+<section id="id10">
+<h3>4.6.1 什么是生命周期？<a class="headerlink" href="#id10" title="Link to this heading">#</a></h3>
+<p><strong>生命周期</strong>是 Rust 用来追踪引用有效范围的机制。大多数时候，生命周期是隐式的、可以被编译器推断的。但在某些情况下，你需要显式标注。</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// 这个函数接收两个字符串切片，返回较长的那个</span>
+<span class="c1">// 编译器无法自动推断返回的引用来自 x 还是 y</span>
+<span class="c1">// 所以我们需要显式标注生命周期</span>
+
+<span class="k">fn</span><span class="w"> </span><span class="nf">longest</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="o">&gt;</span><span class="p">(</span><span class="n">x</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="o">&#39;</span><span class="na">a</span><span class="w"> </span><span class="kt">str</span><span class="p">,</span><span class="w"> </span><span class="n">y</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="o">&#39;</span><span class="na">a</span><span class="w"> </span><span class="kt">str</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kp">&amp;</span><span class="o">&#39;</span><span class="na">a</span><span class="w"> </span><span class="kt">str</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">x</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="n">y</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">x</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">y</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">fn</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">string1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">from</span><span class="p">(</span><span class="s">&quot;long string&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">result</span><span class="p">;</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">string2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">from</span><span class="p">(</span><span class="s">&quot;xyz&quot;</span><span class="p">);</span>
+<span class="w">        </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">longest</span><span class="p">(</span><span class="n">string1</span><span class="p">.</span><span class="n">as_str</span><span class="p">(),</span><span class="w"> </span><span class="n">string2</span><span class="p">.</span><span class="n">as_str</span><span class="p">());</span>
+<span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;最长的字符串是: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">result</span><span class="p">);</span><span class="w">  </span><span class="c1">// ✓ OK</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="c1">// println!(&quot;{}&quot;, result);  // ❌ 如果 result 引用了 string2，这里就悬垂了</span>
+<span class="w">    </span><span class="c1">// 编译器会根据生命周期标注来检查这一点</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="id11">
+<h3>4.6.2 生命周期标注语法<a class="headerlink" href="#id11" title="Link to this heading">#</a></h3>
+<p>生命周期标注不改变引用的实际生命周期，它只是告诉编译器多个引用之间的关系：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="o">&amp;</span><span class="kt">i32</span><span class="w">        </span><span class="c1">// 一个引用</span>
+<span class="o">&amp;&#39;</span><span class="na">a</span><span class="w"> </span><span class="kt">i32</span><span class="w">     </span><span class="c1">// 一个带有显式生命周期的引用</span>
+<span class="o">&amp;&#39;</span><span class="na">a</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="kt">i32</span><span class="w"> </span><span class="c1">// 一个带有显式生命周期的可变引用</span>
+</pre></div>
+</div>
+<blockquote>
+<div><p><strong>类比：</strong> 生命周期标注就像函数签名中的泛型类型参数。<code class="docutils literal notranslate"><span class="pre">fn</span> <span class="pre">foo&lt;T&gt;(x:</span> <span class="pre">T)</span></code> 不会改变 <code class="docutils literal notranslate"><span class="pre">T</span></code> 是什么类型，只是声明&quot;这里有一个类型参数&quot;。同样，<code class="docutils literal notranslate"><span class="pre">fn</span> <span class="pre">foo&lt;'a&gt;(x:</span> <span class="pre">&amp;'a</span> <span class="pre">str)</span></code> 不会改变引用的生命周期，只是声明&quot;这里有一个生命周期参数&quot;。</p>
+</div></blockquote>
+</section>
+<section id="id12">
+<h3>4.6.3 生命周期省略规则<a class="headerlink" href="#id12" title="Link to this heading">#</a></h3>
+<p>Rust 编译器有三条<strong>生命周期省略规则（Lifetime Elision Rules）</strong>，让你在大多数情况下不需要显式标注：</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>规则 1：每个引用参数都获得自己的生命周期参数
+  fn foo(x: &amp;str)           → fn foo&lt;&#39;a&gt;(x: &amp;&#39;a str)
+  fn foo(x: &amp;str, y: &amp;str)  → fn foo&lt;&#39;a, &#39;b&gt;(x: &amp;&#39;a str, y: &amp;&#39;b str)
+
+规则 2：如果只有一个输入生命周期参数，它被赋给所有输出生命周期
+  fn foo(x: &amp;str) -&gt; &amp;str   → fn foo&lt;&#39;a&gt;(x: &amp;&#39;a str) -&gt; &amp;&#39;a str
+
+规则 3：如果有多个输入生命周期参数，但其中一个是 &amp;self 或 &amp;mut self，
+        则 self 的生命周期被赋给所有输出生命周期
+  fn foo(&amp;self, x: &amp;str) -&gt; &amp;str → 返回值的生命周期 = self 的生命周期
+</pre></div>
+</div>
+<p>这就是为什么大多数函数不需要显式写生命周期——编译器会自动推断。</p>
+<p>把三条规则套到具体例子里会更清楚：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// 规则 1：每个输入引用先各有自己的生命周期</span>
+<span class="k">fn</span><span class="w"> </span><span class="nf">first_word</span><span class="p">(</span><span class="n">s</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">s</span><span class="p">.</span><span class="n">split_whitespace</span><span class="p">().</span><span class="n">next</span><span class="p">().</span><span class="n">unwrap_or</span><span class="p">(</span><span class="s">&quot;&quot;</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="c1">// 编译器等价理解为：</span>
+<span class="c1">// fn first_word&lt;&#39;a&gt;(s: &amp;&#39;a str) -&gt; &amp;&#39;a str</span>
+</pre></div>
+</div>
+<p>上面能省略，是因为只有一个输入引用，规则 2 可以明确地说“返回值来自 <code class="docutils literal notranslate"><span class="pre">s</span></code>”。但下面这个函数不能省略：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// ❌ 编译器不知道返回值到底来自 left 还是 right</span>
+<span class="c1">// fn longer(left: &amp;str, right: &amp;str) -&gt; &amp;str {</span>
+<span class="c1">//     if left.len() &gt;= right.len() { left } else { right }</span>
+<span class="c1">// }</span>
+
+<span class="c1">// ✓ 显式标注：返回值的生命周期不能超过 left 和 right 中较短的那个</span>
+<span class="k">fn</span><span class="w"> </span><span class="nf">longer</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="o">&gt;</span><span class="p">(</span><span class="n">left</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="o">&#39;</span><span class="na">a</span><span class="w"> </span><span class="kt">str</span><span class="p">,</span><span class="w"> </span><span class="n">right</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="o">&#39;</span><span class="na">a</span><span class="w"> </span><span class="kt">str</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kp">&amp;</span><span class="o">&#39;</span><span class="na">a</span><span class="w"> </span><span class="kt">str</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">left</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">right</span><span class="p">.</span><span class="n">len</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">left</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">right</span><span class="w"> </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">'a</span></code> 不是“让引用活得更久”的魔法。它只是告诉编译器：<code class="docutils literal notranslate"><span class="pre">left</span></code>、<code class="docutils literal notranslate"><span class="pre">right</span></code> 和返回值之间存在同一个有效性约束。真正的生命周期仍由调用处的变量作用域决定。</p>
+<p>方法里的 <code class="docutils literal notranslate"><span class="pre">&amp;self</span></code> 是最常见的省略场景：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">struct</span><span class="w"> </span><span class="nc">User</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">name</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">User</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// 根据规则 3，返回的 &amp;str 默认绑定到 &amp;self 的生命周期</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">name</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="o">&amp;</span><span class="bp">self</span><span class="p">.</span><span class="n">name</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>所以在业务代码里，你通常先写省略版；只有当编译器报 <code class="docutils literal notranslate"><span class="pre">missing</span> <span class="pre">lifetime</span> <span class="pre">specifier</span></code>，并且返回引用确实可能来自多个输入时，再显式标注。</p>
+</section>
+<section id="id13">
+<h3>4.6.4 结构体中的生命周期<a class="headerlink" href="#id13" title="Link to this heading">#</a></h3>
+<p>当结构体持有引用时，必须标注生命周期：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// 这个结构体持有一个字符串切片的引用</span>
+<span class="c1">// &#39;a 表示：ImportantExcerpt 实例的生命周期不能超过它持有的引用</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">ImportantExcerpt</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">part</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="o">&#39;</span><span class="na">a</span><span class="w"> </span><span class="kt">str</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="o">&gt;</span><span class="w"> </span><span class="n">ImportantExcerpt</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// 根据省略规则 3，返回值的生命周期 = &amp;self 的生命周期</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">level</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kt">i32</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="mi">3</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="c1">// 根据省略规则 3，返回值的生命周期 = &amp;self 的生命周期</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">announce_and_return_part</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">announcement</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;注意: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">announcement</span><span class="p">);</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">part</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">fn</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">novel</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">from</span><span class="p">(</span><span class="s">&quot;Call me Ishmael. Some years ago...&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">first_sentence</span><span class="p">;</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">novel</span><span class="p">.</span><span class="n">as_str</span><span class="p">().</span><span class="n">find</span><span class="p">(</span><span class="sc">&#39;.&#39;</span><span class="p">).</span><span class="n">unwrap_or</span><span class="p">(</span><span class="n">novel</span><span class="p">.</span><span class="n">len</span><span class="p">());</span>
+<span class="w">        </span><span class="n">first_sentence</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">novel</span><span class="p">[</span><span class="o">..</span><span class="n">i</span><span class="p">];</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">excerpt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ImportantExcerpt</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">part</span><span class="p">:</span><span class="w"> </span><span class="nc">first_sentence</span><span class="p">,</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;摘录: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">excerpt</span><span class="p">.</span><span class="n">part</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="id14">
+<h3>4.6.5 静态生命周期<a class="headerlink" href="#id14" title="Link to this heading">#</a></h3>
+<p><code class="docutils literal notranslate"><span class="pre">'static</span></code> 是一个特殊的生命周期，表示引用在整个程序运行期间都有效：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// 字符串字面量的类型是 &amp;&#39;static str</span>
+<span class="kd">let</span><span class="w"> </span><span class="n">s</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="o">&#39;</span><span class="nb">static</span><span class="w"> </span><span class="kt">str</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;我会活到程序结束&quot;</span><span class="p">;</span>
+
+<span class="c1">// 泛型约束中的 &#39;static</span>
+<span class="k">fn</span><span class="w"> </span><span class="nf">print_it</span><span class="p">(</span><span class="n">input</span><span class="p">:</span><span class="w"> </span><span class="nc">impl</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">fmt</span><span class="p">::</span><span class="n">Display</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="o">&#39;</span><span class="nb">static</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">input</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<blockquote>
+<div><p><strong>注意：</strong> <code class="docutils literal notranslate"><span class="pre">'static</span></code> 并不意味着&quot;永远存活&quot;，而是&quot;<strong>能够</strong>存活到程序结束&quot;。拥有所有权的类型（如 <code class="docutils literal notranslate"><span class="pre">String</span></code>、<code class="docutils literal notranslate"><span class="pre">Vec&lt;T&gt;</span></code>）自动满足 <code class="docutils literal notranslate"><span class="pre">'static</span></code> 约束，因为它们不依赖任何外部引用。</p>
+</div></blockquote>
+</section>
+</section>
+<hr class="docutils" />
+<section id="tauri">
+<h2>4.7 实战：所有权在 Tauri 中的体现<a class="headerlink" href="#tauri" title="Link to this heading">#</a></h2>
+<p>在 Tauri 应用开发中，所有权系统无处不在。以下是几个典型场景：</p>
+<section id="id15">
+<h3>4.7.1 Tauri 命令中的所有权<a class="headerlink" href="#id15" title="Link to this heading">#</a></h3>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">use</span><span class="w"> </span><span class="n">tauri</span><span class="p">::</span><span class="n">command</span><span class="p">;</span>
+
+<span class="c1">// ✓ 接收 String（拥有所有权）</span>
+<span class="cp">#[command]</span>
+<span class="k">fn</span><span class="w"> </span><span class="nf">greet</span><span class="p">(</span><span class="n">name</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">String</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="fm">format!</span><span class="p">(</span><span class="s">&quot;Hello, {}!&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">name</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="c1">// ✓ 接收 &amp;str（借用）—— 更高效，避免不必要的拷贝</span>
+<span class="cp">#[command]</span>
+<span class="k">fn</span><span class="w"> </span><span class="nf">greet_ref</span><span class="p">(</span><span class="n">name</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">String</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="fm">format!</span><span class="p">(</span><span class="s">&quot;Hello, {}!&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">name</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="id16">
+<h3>4.7.2 状态管理中的所有权<a class="headerlink" href="#id16" title="Link to this heading">#</a></h3>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">use</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">sync</span><span class="p">::</span><span class="n">Mutex</span><span class="p">;</span>
+<span class="k">use</span><span class="w"> </span><span class="n">tauri</span><span class="p">::</span><span class="n">State</span><span class="p">;</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">AppState</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">counter</span><span class="p">:</span><span class="w"> </span><span class="nc">Mutex</span><span class="o">&lt;</span><span class="kt">i32</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="cp">#[tauri::command]</span>
+<span class="k">fn</span><span class="w"> </span><span class="nf">increment</span><span class="p">(</span><span class="n">state</span><span class="p">:</span><span class="w"> </span><span class="nc">State</span><span class="o">&lt;&#39;</span><span class="nb">_</span><span class="p">,</span><span class="w"> </span><span class="n">AppState</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kt">i32</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// State 是一个借用，不拥有 AppState</span>
+<span class="w">    </span><span class="c1">// Mutex 保证内部可变性的线程安全</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">state</span><span class="p">.</span><span class="n">counter</span><span class="p">.</span><span class="n">lock</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="w">    </span><span class="o">*</span><span class="n">count</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="o">*</span><span class="n">count</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">State&lt;'_,</span> <span class="pre">AppState&gt;</span></code> 里的 <code class="docutils literal notranslate"><span class="pre">'_</span></code> 是一个<strong>匿名生命周期</strong>。它表示“这里确实有一个生命周期参数，但请编译器根据调用上下文推断”。完整写法可以想象成：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span><span class="w"> </span><span class="nf">increment</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="o">&gt;</span><span class="p">(</span><span class="n">state</span><span class="p">:</span><span class="w"> </span><span class="nc">State</span><span class="o">&lt;&#39;</span><span class="na">a</span><span class="p">,</span><span class="w"> </span><span class="n">AppState</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kt">i32</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">count</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">state</span><span class="p">.</span><span class="n">counter</span><span class="p">.</span><span class="n">lock</span><span class="p">().</span><span class="n">unwrap</span><span class="p">();</span>
+<span class="w">    </span><span class="o">*</span><span class="n">count</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">    </span><span class="o">*</span><span class="n">count</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>你通常不需要手写 <code class="docutils literal notranslate"><span class="pre">'a</span></code>，因为这个生命周期只是在说明：<code class="docutils literal notranslate"><span class="pre">State</span></code> 借用了由 Tauri 管理的全局应用状态，<code class="docutils literal notranslate"><span class="pre">increment</span></code> 执行期间可以访问它，但不会拥有它、也不能把这个借用随便保存到函数外部。</p>
+<p>因此，Tauri 命令参数可以这样选：</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>参数类型</p></th>
+<th class="head"><p>适合场景</p></th>
+<th class="head"><p>原因</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">String</span></code>、<code class="docutils literal notranslate"><span class="pre">i32</span></code>、<code class="docutils literal notranslate"><span class="pre">bool</span></code></p></td>
+<td><p>前端传入的简单请求数据</p></td>
+<td><p>直接反序列化为拥有所有权的值，函数内部可自由移动</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Vec&lt;T&gt;</span></code>、自定义 DTO</p></td>
+<td><p>一次请求携带的复杂数据</p></td>
+<td><p>请求数据归当前命令所有，异步处理更简单</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">State&lt;'_,</span> <span class="pre">T&gt;</span></code></p></td>
+<td><p>应用级共享状态、连接池、缓存、配置</p></td>
+<td><p>借用 Tauri 托管的状态，不复制、不转移所有权</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">&amp;str</span></code>、<code class="docutils literal notranslate"><span class="pre">&amp;T</span></code></p></td>
+<td><p>纯 Rust 内部同步函数</p></td>
+<td><p>高效借用；但不适合跨异步边界长期保存</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id17">
+<h3>4.7.3 所有权与异步<a class="headerlink" href="#id17" title="Link to this heading">#</a></h3>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="cp">#[tauri::command]</span>
+<span class="k">async</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">fetch_data</span><span class="p">(</span><span class="n">url</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="nb">String</span><span class="p">,</span><span class="w"> </span><span class="nb">String</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="c1">// url 被移动到异步块中</span>
+<span class="w">    </span><span class="c1">// 如果用 &amp;str，生命周期管理会更复杂</span>
+<span class="w">    </span><span class="n">reqwest</span><span class="p">::</span><span class="n">get</span><span class="p">(</span><span class="o">&amp;</span><span class="n">url</span><span class="p">)</span>
+<span class="w">        </span><span class="p">.</span><span class="k">await</span>
+<span class="w">        </span><span class="p">.</span><span class="n">map_err</span><span class="p">(</span><span class="o">|</span><span class="n">e</span><span class="o">|</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">to_string</span><span class="p">())</span><span class="o">?</span>
+<span class="w">        </span><span class="p">.</span><span class="n">text</span><span class="p">()</span>
+<span class="w">        </span><span class="p">.</span><span class="k">await</span>
+<span class="w">        </span><span class="p">.</span><span class="n">map_err</span><span class="p">(</span><span class="o">|</span><span class="n">e</span><span class="o">|</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">to_string</span><span class="p">())</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<blockquote>
+<div><p><strong>经验法则：</strong> 在 Tauri 命令中，简单数据用值传递（<code class="docutils literal notranslate"><span class="pre">String</span></code>、<code class="docutils literal notranslate"><span class="pre">i32</span></code>），复杂数据用 <code class="docutils literal notranslate"><span class="pre">State&lt;'_,</span> <span class="pre">T&gt;</span></code> 借用，异步函数中优先使用拥有所有权的类型以避免生命周期问题。</p>
+</div></blockquote>
+<p>原因在于 <code class="docutils literal notranslate"><span class="pre">async</span> <span class="pre">fn</span></code> 会被编译器转换成一个状态机。遇到 <code class="docutils literal notranslate"><span class="pre">.await</span></code> 时，函数会暂停，局部变量要被保存到状态机里，等未来继续执行。如果状态机里保存的是借用（例如 <code class="docutils literal notranslate"><span class="pre">&amp;str</span></code>），编译器必须证明被借用的数据在整个异步等待期间都有效；这常常会把生命周期问题扩散到调用链上。</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// 推荐：url 是 String，异步状态机拥有它</span>
+<span class="cp">#[tauri::command]</span>
+<span class="k">async</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">fetch_owned</span><span class="p">(</span><span class="n">url</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="nb">String</span><span class="p">,</span><span class="w"> </span><span class="nb">String</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">reqwest</span><span class="p">::</span><span class="n">get</span><span class="p">(</span><span class="o">&amp;</span><span class="n">url</span><span class="p">)</span>
+<span class="w">        </span><span class="p">.</span><span class="k">await</span>
+<span class="w">        </span><span class="p">.</span><span class="n">map_err</span><span class="p">(</span><span class="o">|</span><span class="n">e</span><span class="o">|</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">to_string</span><span class="p">())</span><span class="o">?</span>
+<span class="w">        </span><span class="p">.</span><span class="n">text</span><span class="p">()</span>
+<span class="w">        </span><span class="p">.</span><span class="k">await</span>
+<span class="w">        </span><span class="p">.</span><span class="n">map_err</span><span class="p">(</span><span class="o">|</span><span class="n">e</span><span class="o">|</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">to_string</span><span class="p">())</span>
+<span class="p">}</span>
+
+<span class="c1">// 内部同步 helper 可以用 &amp;str，因为不会跨越 await 保存引用</span>
+<span class="k">fn</span><span class="w"> </span><span class="nf">normalize_url</span><span class="p">(</span><span class="n">url</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">String</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">url</span><span class="p">.</span><span class="n">trim</span><span class="p">().</span><span class="n">trim_end_matches</span><span class="p">(</span><span class="sc">&#39;/&#39;</span><span class="p">).</span><span class="n">to_string</span><span class="p">()</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>简单说：<strong>命令边界和异步边界偏向所有权，函数内部短小同步逻辑偏向借用。</strong></p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id18">
+<h2>4.8 常见所有权错误与解决方案<a class="headerlink" href="#id18" title="Link to this heading">#</a></h2>
+<section id="id19">
+<h3>4.8.1 错误清单<a class="headerlink" href="#id19" title="Link to this heading">#</a></h3>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>错误信息</p></th>
+<th class="head"><p>原因</p></th>
+<th class="head"><p>解决方案</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">value</span> <span class="pre">borrowed</span> <span class="pre">here</span> <span class="pre">after</span> <span class="pre">move</span></code></p></td>
+<td><p>使用了已移动的值</p></td>
+<td><p>使用 <code class="docutils literal notranslate"><span class="pre">.clone()</span></code> 或改用引用</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cannot</span> <span class="pre">borrow</span> <span class="pre">as</span> <span class="pre">mutable</span></code></p></td>
+<td><p>试图可变借用不可变变量</p></td>
+<td><p>给变量加 <code class="docutils literal notranslate"><span class="pre">mut</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">cannot</span> <span class="pre">borrow</span> <span class="pre">as</span> <span class="pre">mutable</span> <span class="pre">more</span> <span class="pre">than</span> <span class="pre">once</span></code></p></td>
+<td><p>同时存在多个可变引用</p></td>
+<td><p>缩小借用范围或重构代码</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">cannot</span> <span class="pre">borrow</span> <span class="pre">as</span> <span class="pre">immutable</span> <span class="pre">because</span> <span class="pre">it</span> <span class="pre">is</span> <span class="pre">also</span> <span class="pre">borrowed</span> <span class="pre">as</span> <span class="pre">mutable</span></code></p></td>
+<td><p>可变引用和不可变引用共存</p></td>
+<td><p>分离读写操作</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">missing</span> <span class="pre">lifetime</span> <span class="pre">specifier</span></code></p></td>
+<td><p>编译器无法推断生命周期</p></td>
+<td><p>添加显式生命周期标注</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">does</span> <span class="pre">not</span> <span class="pre">live</span> <span class="pre">long</span> <span class="pre">enough</span></code></p></td>
+<td><p>引用超出了被引用值的生命周期</p></td>
+<td><p>延长值的生命周期或改用拥有所有权的类型</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id20">
+<h3>4.8.2 实用技巧<a class="headerlink" href="#id20" title="Link to this heading">#</a></h3>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// 技巧 1：用 block 缩小借用范围</span>
+<span class="k">fn</span><span class="w"> </span><span class="nf">tip_1</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">data</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="fm">vec!</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">];</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="kd">let</span><span class="w"> </span><span class="n">first</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">&amp;</span><span class="n">data</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span><span class="w">  </span><span class="c1">// 不可变借用在这个 block 内</span>
+<span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;first: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">first</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span><span class="w">  </span><span class="c1">// first 的借用在这里结束</span>
+<span class="w">    </span><span class="n">data</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="mi">4</span><span class="p">);</span><span class="w">  </span><span class="c1">// ✓ 现在可以可变借用了</span>
+<span class="p">}</span>
+
+<span class="c1">// 技巧 2：用 clone() 打破所有权纠缠（适度使用）</span>
+<span class="k">fn</span><span class="w"> </span><span class="nf">tip_2</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">from</span><span class="p">(</span><span class="s">&quot;hello&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">s_clone</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">clone</span><span class="p">();</span>
+<span class="w">    </span>
+<span class="w">    </span><span class="c1">// 现在两个函数各有自己的 String</span>
+<span class="w">    </span><span class="n">takes_ownership</span><span class="p">(</span><span class="n">s</span><span class="p">);</span>
+<span class="w">    </span><span class="n">takes_ownership</span><span class="p">(</span><span class="n">s_clone</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="k">fn</span><span class="w"> </span><span class="nf">takes_ownership</span><span class="p">(</span><span class="n">s</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">s</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c1">// 技巧 3：返回元组传递多个所有权</span>
+<span class="k">fn</span><span class="w"> </span><span class="nf">tip_3</span><span class="p">()</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="p">(</span><span class="nb">String</span><span class="p">,</span><span class="w"> </span><span class="kt">usize</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">from</span><span class="p">(</span><span class="s">&quot;hello&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">len</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">s</span><span class="p">.</span><span class="n">len</span><span class="p">();</span>
+<span class="w">    </span><span class="p">(</span><span class="n">s</span><span class="p">,</span><span class="w"> </span><span class="n">len</span><span class="p">)</span><span class="w">  </span><span class="c1">// 同时返回 String 和长度</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id21">
+<h2>4.9 小结<a class="headerlink" href="#id21" title="Link to this heading">#</a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>┌─────────────────────────────────────────────────────────┐
+│                  第四章知识地图                            │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  所有权三原则                                             │
+│  ├── 每个值有且仅有一个所有者                               │
+│  ├── 所有者离开作用域时值被 drop                            │
+│  └── 赋值/传参默认移动所有权                                │
+│                                                         │
+│  移动 vs 拷贝                                             │
+│  ├── 堆数据（String, Vec）→ 移动                          │
+│  ├── 栈数据（i32, bool）  → 拷贝（Copy trait）            │
+│  └── 显式深拷贝           → clone()                      │
+│                                                         │
+│  借用（引用）                                              │
+│  ├── &amp;T   不可变引用：可以有多个                            │
+│  ├── &amp;mut T 可变引用：同一时刻只能有一个                     │
+│  └── 不可变引用和可变引用不能同时存在                         │
+│                                                         │
+│  生命周期                                                 │
+│  ├── 编译器通常能自动推断（省略规则）                         │
+│  ├── 复杂情况需要显式标注 &#39;a                                │
+│  └── &#39;static = 整个程序运行期间有效                         │
+│                                                         │
+│  核心价值                                                 │
+│  ├── 编译期保证内存安全                                     │
+│  ├── 零运行时开销（无 GC）                                  │
+│  └── 消除数据竞争                                          │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
+</pre></div>
+</div>
+<p><strong>与其他语言的终极对比：</strong></p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>维度</p></th>
+<th class="head"><p>C++</p></th>
+<th class="head"><p>Java</p></th>
+<th class="head"><p>Rust</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>内存管理</p></td>
+<td><p>手动 (new/delete) + RAII</p></td>
+<td><p>GC</p></td>
+<td><p>所有权系统</p></td>
+</tr>
+<tr class="row-odd"><td><p>安全保证</p></td>
+<td><p>程序员自律</p></td>
+<td><p>运行时 (GC + NPE)</p></td>
+<td><p>编译期</p></td>
+</tr>
+<tr class="row-even"><td><p>运行时开销</p></td>
+<td><p>零</p></td>
+<td><p>GC 暂停</p></td>
+<td><p>零</p></td>
+</tr>
+<tr class="row-odd"><td><p>空指针</p></td>
+<td><p>存在</p></td>
+<td><p>存在 (null)</p></td>
+<td><p>不存在 (用 Option)</p></td>
+</tr>
+<tr class="row-even"><td><p>数据竞争</p></td>
+<td><p>可能</p></td>
+<td><p>可能</p></td>
+<td><p>编译期消除</p></td>
+</tr>
+<tr class="row-odd"><td><p>学习曲线</p></td>
+<td><p>中</p></td>
+<td><p>低</p></td>
+<td><p>高（但一次学会终身受益）</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<blockquote>
+<div><p><strong>下一章预告：</strong> 第五章我们将学习结构体、枚举与模块系统——Rust 组织代码和建模数据的核心工具。有了所有权的基础，你将看到 Rust 的类型系统如何与所有权完美配合。</p>
+</div></blockquote>
+</section>
+<hr class="docutils" />
+<section id="id22">
+<h2>扩展阅读<a class="headerlink" href="#id22" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><a class="reference external" href="https://doc.rust-lang.org/book/ch04-00-understanding-ownership.html">The Rust Programming Language - Understanding Ownership</a></p></li>
+<li><p><a class="reference external" href="https://doc.rust-lang.org/rust-by-example/scope/move.html">Rust By Example - Ownership and Moves</a></p></li>
+<li><p><a class="reference external" href="https://doc.rust-lang.org/nomicon/ownership.html">Rust Nomicon - Ownership</a></p></li>
+<li><p><a class="reference external" href="https://google.github.io/comprehensive-rust/ownership.html">C++ 工程师的 Rust 所有权指南</a></p></li>
+</ul>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="ch03.html"
+       title="上一页">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">上一页</p>
+        <p class="prev-next-title">第三章 Rust 基础语法速览</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="ch05.html"
+       title="下一页">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">下一页</p>
+        <p class="prev-next-title">第五章 结构体、枚举与模块系统</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> 目录
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id1">4.1 为什么需要所有权？</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id2">4.1.1 内存管理的三条路</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#c">4.1.2 C++ 工程师的痛</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id3">4.2 所有权三原则</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#move-semantics">4.3 移动语义（Move Semantics）</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#vs">4.3.1 栈上数据 vs 堆上数据</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#move">4.3.2 移动（Move）</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id4">4.3.3 与 C++ 移动语义的对比</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#copy">4.3.4 Copy 类型</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#clone">4.3.5 Clone：显式深拷贝</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id5">4.4 函数与所有权</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id6">4.4.1 传参即移动</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id7">4.4.2 返回值转移所有权</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#borrowing-references">4.5 借用与引用（Borrowing &amp; References）</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#t">4.5.1 不可变引用（&amp;T）</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#mut-t">4.5.2 可变引用（&amp;mut T）</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id8">4.5.3 借用规则</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id9">4.5.4 悬垂引用的编译期防护</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#lifetimes">4.6 生命周期（Lifetimes）</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id10">4.6.1 什么是生命周期？</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id11">4.6.2 生命周期标注语法</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id12">4.6.3 生命周期省略规则</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id13">4.6.4 结构体中的生命周期</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id14">4.6.5 静态生命周期</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tauri">4.7 实战：所有权在 Tauri 中的体现</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id15">4.7.1 Tauri 命令中的所有权</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id16">4.7.2 状态管理中的所有权</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id17">4.7.3 所有权与异步</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id18">4.8 常见所有权错误与解决方案</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id19">4.8.1 错误清单</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id20">4.8.2 实用技巧</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id21">4.9 小结</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id22">扩展阅读</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+作者： Walter Fan
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2026, Walter Fan.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

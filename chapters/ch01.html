@@ -1,0 +1,1318 @@
+
+<!DOCTYPE html>
+
+
+<html lang="zh-CN" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>第一章 客户端架构的前世今生 &#8212; Tauri + Rust 客户端架构</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../_static/documentation_options.js?v=327b96ba"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=f281be69"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script src="../_static/translations.js?v=beaddf03"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.esm.min.mjs"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.2.0/dist/mermaid-layout-elk.esm.min.mjs"></script>
+    <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.esm.min.mjs";import elkLayouts from "https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.2.0/dist/mermaid-layout-elk.esm.min.mjs";mermaid.registerLayoutLoaders(elkLayouts);mermaid.initialize({startOnLoad:false});</script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+    <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.esm.min.mjs";
+
+const defaultStyle = document.createElement('style');
+defaultStyle.textContent = `pre.mermaid {
+    /* Same as .mermaid-container > pre */
+    display: block;
+    width: 100%;
+}
+
+pre.mermaid > svg {
+    /* Same as .mermaid-container > pre > svg */
+    height: 500px;
+    width: 100%;
+    max-width: 100% !important;
+}
+`;
+document.head.appendChild(defaultStyle);
+
+const fullscreenStyle = document.createElement('style');
+fullscreenStyle.textContent = `.mermaid-container {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+}
+
+.mermaid-container > pre {
+    display: block;
+    width: 100%;
+}
+
+.mermaid-container > pre > svg {
+    height: 500px;
+    width: 100%;
+    max-width: 100% !important;
+}
+
+.mermaid-fullscreen-btn {
+    width: 28px;
+    height: 28px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    font-size: 14px;
+    line-height: 1;
+    padding: 0;
+    color: #333;
+}
+
+.mermaid-fullscreen-btn:hover {
+    opacity: 100% !important;
+    background: rgba(255, 255, 255, 1);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+    transform: scale(1.1);
+}
+
+.mermaid-fullscreen-btn.dark-theme {
+    background: rgba(50, 50, 50, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #e0e0e0;
+}
+
+.mermaid-fullscreen-btn.dark-theme:hover {
+    background: rgba(60, 60, 60, 1);
+    box-shadow: 0 3px 10px rgba(255, 255, 255, 0.2);
+}
+
+.mermaid-fullscreen-modal {
+    display: none;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 95vw;
+    height: 100vh;
+    background: rgba(255, 255, 255, 0.98);
+    z-index: 9999;
+    padding: 20px;
+    overflow: auto;
+}
+
+.mermaid-fullscreen-modal.dark-theme {
+    background: rgba(0, 0, 0, 0.98);
+}
+
+.mermaid-fullscreen-modal.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen {
+    position: relative;
+    width: 95vw;
+    height: 90vh;
+    max-width: 95vw;
+    max-height: 90vh;
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen.dark-theme {
+    background: #1a1a1a;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+}
+
+.mermaid-container-fullscreen pre.mermaid {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen .mermaid svg {
+    height: 100% !important;
+    width: 100% !important;
+    cursor: grab;
+}
+
+.mermaid-fullscreen-close {
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s;
+    font-size: 24px;
+    line-height: 1;
+    color: #333;
+}
+
+.mermaid-fullscreen-close:hover {
+    background: white;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+    transform: scale(1.1);
+}
+
+.mermaid-fullscreen-close.dark-theme {
+    background: rgba(50, 50, 50, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #e0e0e0;
+}
+
+.mermaid-fullscreen-close.dark-theme:hover {
+    background: rgba(60, 60, 60, 1);
+    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);
+}
+
+.mermaid-fullscreen-modal .mermaid-fullscreen-btn {
+    display: none !important;
+}`;
+document.head.appendChild(fullscreenStyle);
+
+// Detect if page has dark background
+const isDarkTheme = () => {
+    const bgColor = window.getComputedStyle(document.body).backgroundColor;
+    const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        return brightness < 128;
+    }
+    return false;
+};
+
+const load = async () => {
+    await mermaid.run();
+
+    const all_mermaids = document.querySelectorAll(".mermaid");
+    const mermaids_processed = document.querySelectorAll(".mermaid[data-processed='true']");
+
+    if ("False" === "True") {
+        const mermaids_to_add_zoom = -1 === -1 ? all_mermaids.length : -1;
+        if(mermaids_to_add_zoom > 0) {
+            var svgs = d3.selectAll("");
+            if(all_mermaids.length !== mermaids_processed.length) {
+                setTimeout(load, 200);
+                return;
+            } else if(svgs.size() !== mermaids_to_add_zoom) {
+                setTimeout(load, 200);
+                return;
+            } else {
+                svgs.each(function() {
+                    var svg = d3.select(this);
+                    svg.html("<g class='wrapper'>" + svg.html() + "</g>");
+                    var inner = svg.select("g");
+                    var zoom = d3.zoom().on("zoom", function(event) {
+                        inner.attr("transform", event.transform);
+                    });
+                    svg.call(zoom);
+                });
+            }
+        }
+    } else if(all_mermaids.length !== mermaids_processed.length) {
+        // Wait for mermaid to process all diagrams
+        setTimeout(load, 200);
+        return;
+    }
+
+    const darkTheme = isDarkTheme();
+
+    // Stop here if not adding fullscreen capability
+    if ("True" !== "True") return;
+
+    const modal = document.createElement('div');
+    modal.className = 'mermaid-fullscreen-modal' + (darkTheme ? ' dark-theme' : '');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Fullscreen diagram viewer');
+    modal.innerHTML = `
+        <button class="mermaid-fullscreen-close${darkTheme ? ' dark-theme' : ''}" aria-label="Close fullscreen">✕</button>
+        <div class="mermaid-container-fullscreen${darkTheme ? ' dark-theme' : ''}"></div>
+    `;
+    document.body.appendChild(modal);
+
+    const modalContent = modal.querySelector('.mermaid-container-fullscreen');
+    const closeBtn = modal.querySelector('.mermaid-fullscreen-close');
+
+    let previousScrollOffset = [window.scrollX, window.scrollY];
+
+    const closeModal = () => {
+        modal.classList.remove('active');
+        modalContent.innerHTML = '';
+        document.body.style.overflow = ''
+        window.scrollTo({left: previousScrollOffset[0], top: previousScrollOffset[1], behavior: 'instant'});
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('active')) {
+            closeModal();
+        }
+    });
+
+    const allButtons = [];
+
+    document.querySelectorAll('.mermaid').forEach((mermaidDiv) => {
+        if (mermaidDiv.parentNode.classList.contains('mermaid-container') ||
+            mermaidDiv.closest('.mermaid-fullscreen-modal')) {
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+        mermaidDiv.parentNode.insertBefore(container, mermaidDiv);
+        container.appendChild(mermaidDiv);
+
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+        fullscreenBtn.setAttribute('aria-label', 'View diagram in fullscreen');
+        fullscreenBtn.textContent = '⛶';
+        fullscreenBtn.style.opacity = '50%';
+
+        // Calculate dynamic position based on diagram's margin and padding
+        const diagramStyle = window.getComputedStyle(mermaidDiv);
+        const marginTop = parseFloat(diagramStyle.marginTop) || 0;
+        const marginRight = parseFloat(diagramStyle.marginRight) || 0;
+        const paddingTop = parseFloat(diagramStyle.paddingTop) || 0;
+        const paddingRight = parseFloat(diagramStyle.paddingRight) || 0;
+        fullscreenBtn.style.top = `${marginTop + paddingTop + 4}px`;
+        fullscreenBtn.style.right = `${marginRight + paddingRight + 4}px`;
+
+        fullscreenBtn.addEventListener('click', () => {
+            previousScrollOffset = [window.scroll, window.scrollY];
+            const clone = mermaidDiv.cloneNode(true);
+            modalContent.innerHTML = '';
+            modalContent.appendChild(clone);
+
+            const svg = clone.querySelector('svg');
+            if (svg) {
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+                svg.style.width = '100%';
+                svg.style.height = 'auto';
+                svg.style.maxWidth = '100%';
+                svg.style.sdisplay = 'block';
+
+                if ("False" === "True") {
+                    setTimeout(() => {
+                        const g = svg.querySelector('g');
+                        if (g) {
+                            var svgD3 = d3.select(svg);
+                            svgD3.html("<g class='wrapper'>" + svgD3.html() + "</g>");
+                            var inner = svgD3.select("g");
+                            var zoom = d3.zoom().on("zoom", function(event) {
+                                inner.attr("transform", event.transform);
+                            });
+                            svgD3.call(zoom);
+                        }
+                    }, 100);
+                }
+            }
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+
+        container.appendChild(fullscreenBtn);
+        allButtons.push(fullscreenBtn);
+    });
+
+    // Update theme classes when theme changes
+    const updateTheme = () => {
+        const dark = isDarkTheme();
+        allButtons.forEach(btn => {
+            if (dark) {
+                btn.classList.add('dark-theme');
+            } else {
+                btn.classList.remove('dark-theme');
+            }
+        });
+        if (dark) {
+            modal.classList.add('dark-theme');
+            modalContent.classList.add('dark-theme');
+            closeBtn.classList.add('dark-theme');
+        } else {
+            modal.classList.remove('dark-theme');
+            modalContent.classList.remove('dark-theme');
+            closeBtn.classList.remove('dark-theme');
+        }
+    };
+
+    // Watch for theme changes
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+    observer.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class', 'style']
+    });
+};
+
+window.addEventListener("load", load);
+</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'chapters/ch01';</script>
+    <link rel="index" title="索引" href="../genindex.html" />
+    <link rel="search" title="搜索" href="../search.html" />
+    <link rel="next" title="第二章 五分钟跑起第一个 Tauri 应用" href="ch02.html" />
+    <link rel="prev" title="新一代客户端架构：用 Tauri + Rust 构建桌面应用" href="../index.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="zh-CN"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">跳转至主要内容</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>回到顶部</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="版本警告"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">Tauri + Rust 客户端架构</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="搜索" aria-label="搜索" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">搜索</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 0 · 开场</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">第一章 客户端架构的前世今生</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch02.html">第二章 五分钟跑起第一个 Tauri 应用</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 1 · Rust 速成</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="ch03.html">第三章 Rust 基础语法速览</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch04.html">第四章 所有权系统：Rust 的灵魂</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch05.html">第五章 结构体、枚举与模块系统</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch06.html">第六章 Trait 与泛型：Rust 的多态</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch07.html">第七章 错误处理的艺术</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch08.html">第八章 异步编程：从线程到 async/await</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch09.html">第九章 Rust 实战小项目：CLI 聊天室</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 2 · Tauri 深度</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="ch10.html">第十章 Tauri 架构全景</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch11.html">第十一章 前后端通信：IPC 深度解析</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch12.html">第十二章 前端集成：选择你的武器</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch13.html">第十三章 数据持久化：从文件到 SQLite</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch14.html">第十四章 网络与 API 调用</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch15.html">第十五章 实时通信：WebSocket 与群聊</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch16.html">第十六章 原生能力：托盘、通知、快捷键、剪贴板</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch17.html">第十七章 安全加固</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 3 · 高级实践</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="ch18.html">第十八章 插件开发</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch19.html">第十九章 测试策略</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch20.html">第二十章 性能优化</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch21.html">第二十一章 多平台打包与发布</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch22.html">第二十二章 架构模式与最佳实践</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 4 · 结语与参考</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="ch23.html">第二十三章 未来展望</a></li>
+<li class="toctree-l1"><a class="reference internal" href="appendix-a.html">附录 A Rust 速查表</a></li>
+<li class="toctree-l1"><a class="reference internal" href="appendix-b.html">附录 B Tauri CLI 参考</a></li>
+<li class="toctree-l1"><a class="reference internal" href="appendix-c.html">附录 C 推荐资源</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+<a href="https://github.com/walterfan/walter-rust-tauri-book" target="_blank"
+   class="btn btn-sm btn-source-repository-button"
+   title="源码库"
+   data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+
+</a>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="下载此页面">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/chapters/ch01.md" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="下载源文件"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="列印成 PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="全屏模式"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="亮色"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="暗色"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="搜索" aria-label="搜索" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>第一章 客户端架构的前世今生</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> 目录 </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id2">1.1 原生时代：性能为王</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#win32-mfc">1.1.1 Win32 与 MFC</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#java-swing-awt">1.1.2 Java Swing 与 AWT</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#qt-c">1.1.3 Qt：C++ 的跨平台之路</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#web-electron">1.2 Web 入侵：Electron 的崛起</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#web">1.2.1 为什么 Web 技术会入侵桌面？</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#electron">1.2.2 Electron 的架构</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id3">1.2.3 Electron 的成功与代价</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tauri">1.3 Tauri：鱼与熊掌兼得？</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id4">1.3.1 Tauri 的核心理念</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tauri-vs-electron">1.3.2 Tauri vs Electron：全方位对比</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#rust">1.3.3 为什么选 Rust？</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id5">1.4 为什么后端工程师也该懂客户端？</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id6">1.4.1 全栈的真正含义</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id7">1.4.2 后端工程师的优势</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id8">1.4.3 职业发展的新维度</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id9">1.5 本书的学习路线</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#hive">贯穿全书的实战项目：Hive</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id10">1.6 小结</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="id1">
+<h1>第一章 客户端架构的前世今生<a class="headerlink" href="#id1" title="Link to this heading">#</a></h1>
+<blockquote>
+<div><p><em>&quot;Any application that can be written in JavaScript, will eventually be written in JavaScript.&quot;</em>
+— Jeff Atwood, 2007</p>
+</div></blockquote>
+<p>作为一名 C++ 或 Java 后端工程师，你可能已经习惯了服务器端的世界：高并发、分布式、微服务。但你是否想过，用户每天直接打交道的，其实是客户端？本章将带你回顾桌面客户端架构的演进历程，理解为什么 Tauri + Rust 会成为下一代桌面应用的有力选择。</p>
+<pre  class="mermaid">
+        mindmap
+  root((客户端架构演进))
+    原生时代
+      Win32 和 MFC
+      Swing 和 Qt
+      性能与平台绑定
+    Web 技术入侵
+      Electron
+      Chromium 税
+      npm 生态
+    Tauri 路线
+      系统 WebView
+      Rust Core
+      最小权限
+    后端工程师视角
+      系统能力
+      发布成本
+      用户体验
+    </pre><hr class="docutils" />
+<section id="id2">
+<h2>1.1 原生时代：性能为王<a class="headerlink" href="#id2" title="Link to this heading">#</a></h2>
+<section id="win32-mfc">
+<h3>1.1.1 Win32 与 MFC<a class="headerlink" href="#win32-mfc" title="Link to this heading">#</a></h3>
+<p>在 Windows 平台上，最早的桌面应用开发方式是直接调用 Win32 API。每一个窗口、按钮、菜单都需要手动创建和管理消息循环。</p>
+<div class="highlight-c notranslate"><div class="highlight"><pre><span></span><span class="c1">// Win32 经典消息循环</span>
+<span class="n">MSG</span><span class="w"> </span><span class="n">msg</span><span class="p">;</span>
+<span class="k">while</span><span class="w"> </span><span class="p">(</span><span class="n">GetMessage</span><span class="p">(</span><span class="o">&amp;</span><span class="n">msg</span><span class="p">,</span><span class="w"> </span><span class="nb">NULL</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">TranslateMessage</span><span class="p">(</span><span class="o">&amp;</span><span class="n">msg</span><span class="p">);</span>
+<span class="w">    </span><span class="n">DispatchMessage</span><span class="p">(</span><span class="o">&amp;</span><span class="n">msg</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>微软后来推出了 MFC（Microsoft Foundation Classes），用 C++ 类封装了 Win32 API，降低了开发门槛。但 MFC 的学习曲线依然陡峭，文档晦涩，代码臃肿。</p>
+<p><strong>优点：</strong></p>
+<ul class="simple">
+<li><p>极致的性能和系统集成能力</p></li>
+<li><p>可以访问所有操作系统功能</p></li>
+</ul>
+<p><strong>缺点：</strong></p>
+<ul class="simple">
+<li><p>开发效率低，UI 代码冗长</p></li>
+<li><p>跨平台几乎不可能</p></li>
+<li><p>维护成本高昂</p></li>
+</ul>
+</section>
+<section id="java-swing-awt">
+<h3>1.1.2 Java Swing 与 AWT<a class="headerlink" href="#java-swing-awt" title="Link to this heading">#</a></h3>
+<p>Java 试图用&quot;一次编写，到处运行&quot;解决跨平台问题。AWT 使用原生控件，Swing 则完全自绘。</p>
+<div class="highlight-java notranslate"><div class="highlight"><pre><span></span><span class="c1">// Swing 示例</span>
+<span class="n">JFrame</span><span class="w"> </span><span class="n">frame</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">JFrame</span><span class="p">(</span><span class="s">&quot;Hello Swing&quot;</span><span class="p">);</span>
+<span class="n">JButton</span><span class="w"> </span><span class="n">button</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">JButton</span><span class="p">(</span><span class="s">&quot;Click me&quot;</span><span class="p">);</span>
+<span class="n">button</span><span class="p">.</span><span class="na">addActionListener</span><span class="p">(</span><span class="n">e</span><span class="w"> </span><span class="o">-&gt;</span><span class="w"> </span><span class="n">System</span><span class="p">.</span><span class="na">out</span><span class="p">.</span><span class="na">println</span><span class="p">(</span><span class="s">&quot;Clicked!&quot;</span><span class="p">));</span>
+<span class="n">frame</span><span class="p">.</span><span class="na">add</span><span class="p">(</span><span class="n">button</span><span class="p">);</span>
+<span class="n">frame</span><span class="p">.</span><span class="na">setSize</span><span class="p">(</span><span class="mi">300</span><span class="p">,</span><span class="w"> </span><span class="mi">200</span><span class="p">);</span>
+<span class="n">frame</span><span class="p">.</span><span class="na">setVisible</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span>
+</pre></div>
+</div>
+<p><strong>优点：</strong></p>
+<ul class="simple">
+<li><p>真正的跨平台</p></li>
+<li><p>丰富的组件库</p></li>
+</ul>
+<p><strong>缺点：</strong></p>
+<ul class="simple">
+<li><p>界面风格与原生应用格格不入（&quot;一眼就能认出是 Java 写的&quot;）</p></li>
+<li><p>启动慢，内存占用高</p></li>
+<li><p>JVM 依赖</p></li>
+</ul>
+</section>
+<section id="qt-c">
+<h3>1.1.3 Qt：C++ 的跨平台之路<a class="headerlink" href="#qt-c" title="Link to this heading">#</a></h3>
+<p>Qt 是 C++ 世界中最成功的跨平台 GUI 框架。它引入了信号与槽（Signals &amp; Slots）机制，用元对象编译器（moc）扩展了 C++ 语法。</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="c1">// Qt 信号与槽</span>
+<span class="n">QPushButton</span><span class="w"> </span><span class="o">*</span><span class="n">button</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">new</span><span class="w"> </span><span class="n">QPushButton</span><span class="p">(</span><span class="s">&quot;Click me&quot;</span><span class="p">);</span>
+<span class="n">connect</span><span class="p">(</span><span class="n">button</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">QPushButton</span><span class="o">::</span><span class="n">clicked</span><span class="p">,</span><span class="w"> </span><span class="p">[]()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">qDebug</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;Clicked!&quot;</span><span class="p">;</span>
+<span class="p">});</span>
+</pre></div>
+</div>
+<p><strong>优点：</strong></p>
+<ul class="simple">
+<li><p>高性能，接近原生</p></li>
+<li><p>真正跨平台（Windows / macOS / Linux）</p></li>
+<li><p>成熟的生态和工具链（Qt Creator、Qt Designer）</p></li>
+</ul>
+<p><strong>缺点：</strong></p>
+<ul class="simple">
+<li><p>商业许可费用高</p></li>
+<li><p>二进制体积较大</p></li>
+<li><p>moc 增加了构建复杂度</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>┌─────────────────────────────────────────────────┐
+│              原生时代技术对比                      │
+├──────────┬──────────┬───────────┬────────────────┤
+│          │ Win32/MFC│ Java Swing│      Qt        │
+├──────────┼──────────┼───────────┼────────────────┤
+│ 语言     │ C/C++    │ Java      │ C++            │
+│ 跨平台   │ ✗        │ ✓         │ ✓              │
+│ 性能     │ ★★★★★   │ ★★★       │ ★★★★★          │
+│ 开发效率 │ ★★       │ ★★★       │ ★★★★           │
+│ 原生感   │ ★★★★★   │ ★★        │ ★★★★           │
+│ 包体积   │ 小       │ 大(含JVM) │ 中             │
+└──────────┴──────────┴───────────┴────────────────┘
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="web-electron">
+<h2>1.2 Web 入侵：Electron 的崛起<a class="headerlink" href="#web-electron" title="Link to this heading">#</a></h2>
+<section id="web">
+<h3>1.2.1 为什么 Web 技术会入侵桌面？<a class="headerlink" href="#web" title="Link to this heading">#</a></h3>
+<p>2010 年代，Web 前端技术飞速发展：HTML5、CSS3、React、Vue……前端工程师的数量也在爆发式增长。一个自然的想法出现了：<strong>能不能用 Web 技术写桌面应用？</strong></p>
+<p>答案是 Electron。</p>
+</section>
+<section id="electron">
+<h3>1.2.2 Electron 的架构<a class="headerlink" href="#electron" title="Link to this heading">#</a></h3>
+<p>Electron 的核心思路非常直接：把 Chromium 浏览器和 Node.js 打包在一起，你的应用就是一个&quot;定制浏览器&quot;。</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>┌───────────────────────────────────────┐
+│            Electron 应用               │
+│                                       │
+│  ┌─────────────┐  ┌────────────────┐  │
+│  │  Renderer   │  │  Main Process  │  │
+│  │  Process    │  │  (Node.js)     │  │
+│  │  (Chromium) │  │                │  │
+│  │             │◄─┤  文件系统访问    │  │
+│  │  HTML/CSS/  │  │  原生菜单       │  │
+│  │  JavaScript │  │  系统托盘       │  │
+│  │             │  │  子进程管理     │  │
+│  └─────────────┘  └────────────────┘  │
+│                                       │
+│  ┌─────────────────────────────────┐  │
+│  │     Chromium + Node.js 运行时    │  │
+│  │     (~150MB 基础体积)            │  │
+│  └─────────────────────────────────┘  │
+└───────────────────────────────────────┘
+</pre></div>
+</div>
+</section>
+<section id="id3">
+<h3>1.2.3 Electron 的成功与代价<a class="headerlink" href="#id3" title="Link to this heading">#</a></h3>
+<p><strong>成功案例：</strong> VS Code、Slack、Discord、Notion、Figma Desktop……这些都是 Electron 应用。</p>
+<p><strong>优点：</strong></p>
+<ul class="simple">
+<li><p>Web 技术栈，前端工程师无缝上手</p></li>
+<li><p>庞大的 npm 生态</p></li>
+<li><p>跨平台一致的 UI 体验</p></li>
+</ul>
+<p><strong>代价：</strong></p>
+<ul class="simple">
+<li><p><strong>内存怪兽</strong>：每个 Electron 应用都内嵌一个完整的 Chromium，一个简单的 Hello World 就要占用 100MB+ 内存</p></li>
+<li><p><strong>包体积巨大</strong>：最小的 Electron 应用也有 150MB+</p></li>
+<li><p><strong>启动缓慢</strong>：需要启动整个浏览器引擎</p></li>
+<li><p><strong>安全隐患</strong>：Node.js 拥有完整的系统访问权限</p></li>
+</ul>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>一个真实的对比：
+
+                    Electron App    原生 App
+Hello World 体积:    ~150 MB        ~2 MB
+空闲内存占用:         ~120 MB        ~15 MB
+冷启动时间:           ~3 秒          ~0.3 秒
+</pre></div>
+</div>
+<p>这就是著名的 <strong>&quot;Electron 税&quot;</strong>——你为了开发效率付出的性能代价。</p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="tauri">
+<h2>1.3 Tauri：鱼与熊掌兼得？<a class="headerlink" href="#tauri" title="Link to this heading">#</a></h2>
+<section id="id4">
+<h3>1.3.1 Tauri 的核心理念<a class="headerlink" href="#id4" title="Link to this heading">#</a></h3>
+<p>Tauri 的设计哲学可以用一句话概括：<strong>用系统自带的 WebView 替代 Chromium，用 Rust 替代 Node.js。</strong></p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>┌───────────────────────────────────────┐
+│              Tauri 应用                │
+│                                       │
+│  ┌─────────────┐  ┌────────────────┐  │
+│  │  WebView    │  │  Rust Core     │  │
+│  │  (系统自带)  │  │  Process       │  │
+│  │             │  │                │  │
+│  │  HTML/CSS/  │◄─┤  IPC 桥接      │  │
+│  │  JavaScript │  │  文件系统       │  │
+│  │             │  │  网络请求       │  │
+│  │  你的前端   │  │  系统集成       │  │
+│  │  框架       │  │  插件系统       │  │
+│  └─────────────┘  └────────────────┘  │
+│                                       │
+│  ┌─────────────────────────────────┐  │
+│  │   系统 WebView (已预装，0 体积)   │  │
+│  │   macOS: WebKit  Win: WebView2   │  │
+│  │   Linux: WebKitGTK               │  │
+│  └─────────────────────────────────┘  │
+└───────────────────────────────────────┘
+</pre></div>
+</div>
+</section>
+<section id="tauri-vs-electron">
+<h3>1.3.2 Tauri vs Electron：全方位对比<a class="headerlink" href="#tauri-vs-electron" title="Link to this heading">#</a></h3>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>维度</p></th>
+<th class="head"><p>Electron</p></th>
+<th class="head"><p>Tauri</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>后端语言</strong></p></td>
+<td><p>JavaScript (Node.js)</p></td>
+<td><p>Rust</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>渲染引擎</strong></p></td>
+<td><p>内嵌 Chromium</p></td>
+<td><p>系统 WebView</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>最小包体积</strong></p></td>
+<td><p>~150 MB</p></td>
+<td><p>~2 MB</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>空闲内存</strong></p></td>
+<td><p>~120 MB</p></td>
+<td><p>~20 MB</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>冷启动</strong></p></td>
+<td><p>~3 秒</p></td>
+<td><p>~0.5 秒</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>安全模型</strong></p></td>
+<td><p>宽松（Node.js 全权限）</p></td>
+<td><p>严格（最小权限原则）</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>前端框架</strong></p></td>
+<td><p>任意</p></td>
+<td><p>任意</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>跨平台</strong></p></td>
+<td><p>Win/Mac/Linux</p></td>
+<td><p>Win/Mac/Linux + iOS/Android (v2)</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>生态成熟度</strong></p></td>
+<td><p>★★★★★</p></td>
+<td><p>★★★</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>学习曲线</strong></p></td>
+<td><p>低（JS 全栈）</p></td>
+<td><p>中（需学 Rust）</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="rust">
+<h3>1.3.3 为什么选 Rust？<a class="headerlink" href="#rust" title="Link to this heading">#</a></h3>
+<p>你可能会问：为什么 Tauri 选择 Rust 而不是 Go、C++ 或其他语言？</p>
+<p><strong>1. 内存安全，无 GC</strong></p>
+<p>Rust 通过所有权系统在编译期保证内存安全，既没有 C++ 的悬空指针和内存泄漏之忧，也没有 Java/Go 的垃圾回收停顿。</p>
+<p><strong>2. 零成本抽象</strong></p>
+<p>Rust 的抽象不会带来运行时开销。泛型在编译期单态化，trait 方法可以静态分发——性能与手写 C 代码相当。</p>
+<p><strong>3. 出色的跨平台支持</strong></p>
+<p>Rust 通过 <code class="docutils literal notranslate"><span class="pre">rustup</span></code> 可以轻松交叉编译到多个目标平台，与 Tauri 的跨平台理念完美契合。</p>
+<p><strong>4. 现代化的工具链</strong></p>
+<p>Cargo 包管理器、rustfmt 格式化、clippy 静态分析、docs.rs 文档——Rust 的工具链体验是一流的。</p>
+<p><strong>5. 活跃的社区</strong></p>
+<p>Rust 连续多年被 Stack Overflow 评为&quot;最受喜爱的编程语言&quot;，社区活跃，crate 生态蓬勃发展。</p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id5">
+<h2>1.4 为什么后端工程师也该懂客户端？<a class="headerlink" href="#id5" title="Link to this heading">#</a></h2>
+<section id="id6">
+<h3>1.4.1 全栈的真正含义<a class="headerlink" href="#id6" title="Link to this heading">#</a></h3>
+<p>在微服务时代，&quot;全栈&quot;往往被理解为&quot;前端 + 后端 API&quot;。但真正的全栈应该包括：</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>┌─────────────────────────────────────────┐
+│              用户触达的完整链路            │
+│                                         │
+│  桌面客户端 ──► API Gateway ──► 微服务   │
+│      │              │             │      │
+│      ▼              ▼             ▼      │
+│  本地存储       负载均衡        数据库    │
+│  系统集成       认证鉴权        消息队列  │
+│  离线能力       限流熔断        缓存     │
+└─────────────────────────────────────────┘
+</pre></div>
+</div>
+<p>理解客户端，才能设计出更好的 API；理解系统集成，才能提供更好的用户体验。</p>
+</section>
+<section id="id7">
+<h3>1.4.2 后端工程师的优势<a class="headerlink" href="#id7" title="Link to this heading">#</a></h3>
+<p>作为 C++/Java 后端工程师，你在学习 Tauri + Rust 时有天然优势：</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>你已有的技能</p></th>
+<th class="head"><p>在 Rust/Tauri 中的映射</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>C++ RAII</p></td>
+<td><p>Rust 所有权系统</p></td>
+</tr>
+<tr class="row-odd"><td><p>Java 接口</p></td>
+<td><p>Rust Trait</p></td>
+</tr>
+<tr class="row-even"><td><p>多线程编程</p></td>
+<td><p>async/await + tokio</p></td>
+</tr>
+<tr class="row-odd"><td><p>设计模式</p></td>
+<td><p>Rust 的模式匹配 + 枚举</p></td>
+</tr>
+<tr class="row-even"><td><p>构建系统 (CMake/Maven)</p></td>
+<td><p>Cargo</p></td>
+</tr>
+<tr class="row-odd"><td><p>网络编程</p></td>
+<td><p>reqwest / tokio-tungstenite</p></td>
+</tr>
+<tr class="row-even"><td><p>数据库操作</p></td>
+<td><p>sqlx / sea-orm</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id8">
+<h3>1.4.3 职业发展的新维度<a class="headerlink" href="#id8" title="Link to this heading">#</a></h3>
+<p>掌握客户端开发能力，你可以：</p>
+<ol class="arabic simple">
+<li><p><strong>独立交付完整产品</strong> — 从后端 API 到桌面客户端，一个人就能搞定 MVP</p></li>
+<li><p><strong>更好地与前端协作</strong> — 理解客户端的约束和需求，设计更合理的 API</p></li>
+<li><p><strong>开拓新的职业方向</strong> — Rust 工程师的市场需求正在快速增长</p></li>
+<li><p><strong>构建开发者工具</strong> — 很多优秀的开发者工具（如 VS Code 的替代品）正在用 Tauri 重写</p></li>
+</ol>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id9">
+<h2>1.5 本书的学习路线<a class="headerlink" href="#id9" title="Link to this heading">#</a></h2>
+<p>本书采用渐进式的学习路线，从 Rust 基础到 Tauri 实战，最终构建一个完整的桌面应用：</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>Part 0: 开场
+  Ch01 为什么 ──────► Ch02 Hello Tauri
+                           │
+Part 1: Rust 速成          ▼
+  Ch03 基础语法 ──► Ch04 所有权 ──► Ch05 结构体/枚举
+                                        │
+  Ch06 Trait/泛型 ◄─────────────────────┘
+       │
+  Ch07 错误处理 ──► Ch08 异步编程 ──► Ch09 CLI 聊天室
+                                        │
+Part 2: Tauri 深度                      ▼
+  Ch10 架构 ──► Ch11 IPC ──► Ch12 前端集成
+       │
+  Ch13 持久化 ──► Ch14 网络 ──► Ch15 WebSocket
+       │
+  Ch16 原生能力 ──► Ch17 安全
+                      │
+Part 3: 高级实践       ▼
+  Ch18 插件 ──► Ch19 测试 ──► Ch20 性能
+       │
+  Ch21 打包发布 ──► Ch22 架构模式
+                      │
+Part 4: 结语           ▼
+  Ch23 未来展望
+</pre></div>
+</div>
+<section id="hive">
+<h3>贯穿全书的实战项目：Hive<a class="headerlink" href="#hive" title="Link to this heading">#</a></h3>
+<p>我们将从零开始构建一个名为 <strong>Hive</strong>（蜂巢）的团队协作桌面客户端。它会随着章节的推进逐步迭代：</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>版本</p></th>
+<th class="head"><p>功能</p></th>
+<th class="head"><p>对应章节</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>v0.1</p></td>
+<td><p>Hello Tauri + Markdown 编辑器</p></td>
+<td><p>Ch02, Ch10</p></td>
+</tr>
+<tr class="row-odd"><td><p>v0.2</p></td>
+<td><p>SQLite 本地持久化</p></td>
+<td><p>Ch13</p></td>
+</tr>
+<tr class="row-even"><td><p>v0.3</p></td>
+<td><p>REST API 云同步</p></td>
+<td><p>Ch14</p></td>
+</tr>
+<tr class="row-odd"><td><p>v0.4</p></td>
+<td><p>系统托盘 / 通知 / 快捷键</p></td>
+<td><p>Ch16</p></td>
+</tr>
+<tr class="row-even"><td><p>v0.5</p></td>
+<td><p>群聊功能（WebSocket）</p></td>
+<td><p>Ch15</p></td>
+</tr>
+<tr class="row-odd"><td><p>v0.6</p></td>
+<td><p>插件系统</p></td>
+<td><p>Ch18</p></td>
+</tr>
+<tr class="row-even"><td><p>v1.0</p></td>
+<td><p>自动更新 + 多平台 CI/CD</p></td>
+<td><p>Ch21</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id10">
+<h2>1.6 小结<a class="headerlink" href="#id10" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><strong>原生开发</strong>（Win32/MFC/Qt/Swing）性能最优，但开发效率低、跨平台困难</p></li>
+<li><p><strong>Electron</strong> 用 Web 技术解决了跨平台和开发效率问题，但付出了巨大的性能代价</p></li>
+<li><p><strong>Tauri</strong> 结合了系统 WebView 和 Rust，在保持 Web 开发体验的同时大幅降低了资源消耗</p></li>
+<li><p>后端工程师学习 Rust + Tauri 有天然优势，且能拓展职业发展空间</p></li>
+<li><p>本书将通过 Hive 项目，带你从零掌握 Tauri 桌面应用开发</p></li>
+</ul>
+<p>下一章，我们将动手搭建开发环境，五分钟跑起第一个 Tauri 应用。</p>
+<hr class="docutils" />
+<blockquote>
+<div><p><strong>扩展阅读</strong></p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://tauri.app/">Tauri 官方网站</a></p></li>
+<li><p><a class="reference external" href="https://www.electronjs.org/">Electron 官方网站</a></p></li>
+<li><p><a class="reference external" href="https://www.rust-lang.org/">Rust 官方网站</a></p></li>
+<li><p><a class="reference external" href="https://survey.stackoverflow.co/2024/">Stack Overflow 2024 Developer Survey</a></p></li>
+<li><p><a class="reference external" href="https://github.com/nicehash/nicehash-tauri-electron-benchmark">Electron 与 Tauri 性能对比基准测试</a></p></li>
+</ul>
+</div></blockquote>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="../index.html"
+       title="上一页">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">上一页</p>
+        <p class="prev-next-title">新一代客户端架构：用 Tauri + Rust 构建桌面应用</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="ch02.html"
+       title="下一页">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">下一页</p>
+        <p class="prev-next-title">第二章 五分钟跑起第一个 Tauri 应用</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> 目录
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id2">1.1 原生时代：性能为王</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#win32-mfc">1.1.1 Win32 与 MFC</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#java-swing-awt">1.1.2 Java Swing 与 AWT</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#qt-c">1.1.3 Qt：C++ 的跨平台之路</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#web-electron">1.2 Web 入侵：Electron 的崛起</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#web">1.2.1 为什么 Web 技术会入侵桌面？</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#electron">1.2.2 Electron 的架构</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id3">1.2.3 Electron 的成功与代价</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tauri">1.3 Tauri：鱼与熊掌兼得？</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id4">1.3.1 Tauri 的核心理念</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tauri-vs-electron">1.3.2 Tauri vs Electron：全方位对比</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#rust">1.3.3 为什么选 Rust？</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id5">1.4 为什么后端工程师也该懂客户端？</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id6">1.4.1 全栈的真正含义</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id7">1.4.2 后端工程师的优势</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id8">1.4.3 职业发展的新维度</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id9">1.5 本书的学习路线</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#hive">贯穿全书的实战项目：Hive</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id10">1.6 小结</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+作者： Walter Fan
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2026, Walter Fan.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

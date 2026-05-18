@@ -1,0 +1,1845 @@
+
+<!DOCTYPE html>
+
+
+<html lang="zh-CN" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>第六章 Trait 与泛型：Rust 的多态 &#8212; Tauri + Rust 客户端架构</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../_static/documentation_options.js?v=327b96ba"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=f281be69"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script src="../_static/translations.js?v=beaddf03"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.esm.min.mjs"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.2.0/dist/mermaid-layout-elk.esm.min.mjs"></script>
+    <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.esm.min.mjs";import elkLayouts from "https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.2.0/dist/mermaid-layout-elk.esm.min.mjs";mermaid.registerLayoutLoaders(elkLayouts);mermaid.initialize({startOnLoad:false});</script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+    <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.esm.min.mjs";
+
+const defaultStyle = document.createElement('style');
+defaultStyle.textContent = `pre.mermaid {
+    /* Same as .mermaid-container > pre */
+    display: block;
+    width: 100%;
+}
+
+pre.mermaid > svg {
+    /* Same as .mermaid-container > pre > svg */
+    height: 500px;
+    width: 100%;
+    max-width: 100% !important;
+}
+`;
+document.head.appendChild(defaultStyle);
+
+const fullscreenStyle = document.createElement('style');
+fullscreenStyle.textContent = `.mermaid-container {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+}
+
+.mermaid-container > pre {
+    display: block;
+    width: 100%;
+}
+
+.mermaid-container > pre > svg {
+    height: 500px;
+    width: 100%;
+    max-width: 100% !important;
+}
+
+.mermaid-fullscreen-btn {
+    width: 28px;
+    height: 28px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    font-size: 14px;
+    line-height: 1;
+    padding: 0;
+    color: #333;
+}
+
+.mermaid-fullscreen-btn:hover {
+    opacity: 100% !important;
+    background: rgba(255, 255, 255, 1);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+    transform: scale(1.1);
+}
+
+.mermaid-fullscreen-btn.dark-theme {
+    background: rgba(50, 50, 50, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #e0e0e0;
+}
+
+.mermaid-fullscreen-btn.dark-theme:hover {
+    background: rgba(60, 60, 60, 1);
+    box-shadow: 0 3px 10px rgba(255, 255, 255, 0.2);
+}
+
+.mermaid-fullscreen-modal {
+    display: none;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 95vw;
+    height: 100vh;
+    background: rgba(255, 255, 255, 0.98);
+    z-index: 9999;
+    padding: 20px;
+    overflow: auto;
+}
+
+.mermaid-fullscreen-modal.dark-theme {
+    background: rgba(0, 0, 0, 0.98);
+}
+
+.mermaid-fullscreen-modal.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen {
+    position: relative;
+    width: 95vw;
+    height: 90vh;
+    max-width: 95vw;
+    max-height: 90vh;
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen.dark-theme {
+    background: #1a1a1a;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+}
+
+.mermaid-container-fullscreen pre.mermaid {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen .mermaid svg {
+    height: 100% !important;
+    width: 100% !important;
+    cursor: grab;
+}
+
+.mermaid-fullscreen-close {
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s;
+    font-size: 24px;
+    line-height: 1;
+    color: #333;
+}
+
+.mermaid-fullscreen-close:hover {
+    background: white;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+    transform: scale(1.1);
+}
+
+.mermaid-fullscreen-close.dark-theme {
+    background: rgba(50, 50, 50, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #e0e0e0;
+}
+
+.mermaid-fullscreen-close.dark-theme:hover {
+    background: rgba(60, 60, 60, 1);
+    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);
+}
+
+.mermaid-fullscreen-modal .mermaid-fullscreen-btn {
+    display: none !important;
+}`;
+document.head.appendChild(fullscreenStyle);
+
+// Detect if page has dark background
+const isDarkTheme = () => {
+    const bgColor = window.getComputedStyle(document.body).backgroundColor;
+    const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        return brightness < 128;
+    }
+    return false;
+};
+
+const load = async () => {
+    await mermaid.run();
+
+    const all_mermaids = document.querySelectorAll(".mermaid");
+    const mermaids_processed = document.querySelectorAll(".mermaid[data-processed='true']");
+
+    if ("False" === "True") {
+        const mermaids_to_add_zoom = -1 === -1 ? all_mermaids.length : -1;
+        if(mermaids_to_add_zoom > 0) {
+            var svgs = d3.selectAll("");
+            if(all_mermaids.length !== mermaids_processed.length) {
+                setTimeout(load, 200);
+                return;
+            } else if(svgs.size() !== mermaids_to_add_zoom) {
+                setTimeout(load, 200);
+                return;
+            } else {
+                svgs.each(function() {
+                    var svg = d3.select(this);
+                    svg.html("<g class='wrapper'>" + svg.html() + "</g>");
+                    var inner = svg.select("g");
+                    var zoom = d3.zoom().on("zoom", function(event) {
+                        inner.attr("transform", event.transform);
+                    });
+                    svg.call(zoom);
+                });
+            }
+        }
+    } else if(all_mermaids.length !== mermaids_processed.length) {
+        // Wait for mermaid to process all diagrams
+        setTimeout(load, 200);
+        return;
+    }
+
+    const darkTheme = isDarkTheme();
+
+    // Stop here if not adding fullscreen capability
+    if ("True" !== "True") return;
+
+    const modal = document.createElement('div');
+    modal.className = 'mermaid-fullscreen-modal' + (darkTheme ? ' dark-theme' : '');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Fullscreen diagram viewer');
+    modal.innerHTML = `
+        <button class="mermaid-fullscreen-close${darkTheme ? ' dark-theme' : ''}" aria-label="Close fullscreen">✕</button>
+        <div class="mermaid-container-fullscreen${darkTheme ? ' dark-theme' : ''}"></div>
+    `;
+    document.body.appendChild(modal);
+
+    const modalContent = modal.querySelector('.mermaid-container-fullscreen');
+    const closeBtn = modal.querySelector('.mermaid-fullscreen-close');
+
+    let previousScrollOffset = [window.scrollX, window.scrollY];
+
+    const closeModal = () => {
+        modal.classList.remove('active');
+        modalContent.innerHTML = '';
+        document.body.style.overflow = ''
+        window.scrollTo({left: previousScrollOffset[0], top: previousScrollOffset[1], behavior: 'instant'});
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('active')) {
+            closeModal();
+        }
+    });
+
+    const allButtons = [];
+
+    document.querySelectorAll('.mermaid').forEach((mermaidDiv) => {
+        if (mermaidDiv.parentNode.classList.contains('mermaid-container') ||
+            mermaidDiv.closest('.mermaid-fullscreen-modal')) {
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+        mermaidDiv.parentNode.insertBefore(container, mermaidDiv);
+        container.appendChild(mermaidDiv);
+
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+        fullscreenBtn.setAttribute('aria-label', 'View diagram in fullscreen');
+        fullscreenBtn.textContent = '⛶';
+        fullscreenBtn.style.opacity = '50%';
+
+        // Calculate dynamic position based on diagram's margin and padding
+        const diagramStyle = window.getComputedStyle(mermaidDiv);
+        const marginTop = parseFloat(diagramStyle.marginTop) || 0;
+        const marginRight = parseFloat(diagramStyle.marginRight) || 0;
+        const paddingTop = parseFloat(diagramStyle.paddingTop) || 0;
+        const paddingRight = parseFloat(diagramStyle.paddingRight) || 0;
+        fullscreenBtn.style.top = `${marginTop + paddingTop + 4}px`;
+        fullscreenBtn.style.right = `${marginRight + paddingRight + 4}px`;
+
+        fullscreenBtn.addEventListener('click', () => {
+            previousScrollOffset = [window.scroll, window.scrollY];
+            const clone = mermaidDiv.cloneNode(true);
+            modalContent.innerHTML = '';
+            modalContent.appendChild(clone);
+
+            const svg = clone.querySelector('svg');
+            if (svg) {
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+                svg.style.width = '100%';
+                svg.style.height = 'auto';
+                svg.style.maxWidth = '100%';
+                svg.style.sdisplay = 'block';
+
+                if ("False" === "True") {
+                    setTimeout(() => {
+                        const g = svg.querySelector('g');
+                        if (g) {
+                            var svgD3 = d3.select(svg);
+                            svgD3.html("<g class='wrapper'>" + svgD3.html() + "</g>");
+                            var inner = svgD3.select("g");
+                            var zoom = d3.zoom().on("zoom", function(event) {
+                                inner.attr("transform", event.transform);
+                            });
+                            svgD3.call(zoom);
+                        }
+                    }, 100);
+                }
+            }
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+
+        container.appendChild(fullscreenBtn);
+        allButtons.push(fullscreenBtn);
+    });
+
+    // Update theme classes when theme changes
+    const updateTheme = () => {
+        const dark = isDarkTheme();
+        allButtons.forEach(btn => {
+            if (dark) {
+                btn.classList.add('dark-theme');
+            } else {
+                btn.classList.remove('dark-theme');
+            }
+        });
+        if (dark) {
+            modal.classList.add('dark-theme');
+            modalContent.classList.add('dark-theme');
+            closeBtn.classList.add('dark-theme');
+        } else {
+            modal.classList.remove('dark-theme');
+            modalContent.classList.remove('dark-theme');
+            closeBtn.classList.remove('dark-theme');
+        }
+    };
+
+    // Watch for theme changes
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+    observer.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class', 'style']
+    });
+};
+
+window.addEventListener("load", load);
+</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'chapters/ch06';</script>
+    <link rel="index" title="索引" href="../genindex.html" />
+    <link rel="search" title="搜索" href="../search.html" />
+    <link rel="next" title="第七章 错误处理的艺术" href="ch07.html" />
+    <link rel="prev" title="第五章 结构体、枚举与模块系统" href="ch05.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="zh-CN"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">跳转至主要内容</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>回到顶部</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="版本警告"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">Tauri + Rust 客户端架构</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="搜索" aria-label="搜索" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">搜索</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 0 · 开场</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="ch01.html">第一章 客户端架构的前世今生</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch02.html">第二章 五分钟跑起第一个 Tauri 应用</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 1 · Rust 速成</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="ch03.html">第三章 Rust 基础语法速览</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch04.html">第四章 所有权系统：Rust 的灵魂</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch05.html">第五章 结构体、枚举与模块系统</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">第六章 Trait 与泛型：Rust 的多态</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch07.html">第七章 错误处理的艺术</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch08.html">第八章 异步编程：从线程到 async/await</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch09.html">第九章 Rust 实战小项目：CLI 聊天室</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 2 · Tauri 深度</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="ch10.html">第十章 Tauri 架构全景</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch11.html">第十一章 前后端通信：IPC 深度解析</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch12.html">第十二章 前端集成：选择你的武器</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch13.html">第十三章 数据持久化：从文件到 SQLite</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch14.html">第十四章 网络与 API 调用</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch15.html">第十五章 实时通信：WebSocket 与群聊</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch16.html">第十六章 原生能力：托盘、通知、快捷键、剪贴板</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch17.html">第十七章 安全加固</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 3 · 高级实践</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="ch18.html">第十八章 插件开发</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch19.html">第十九章 测试策略</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch20.html">第二十章 性能优化</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch21.html">第二十一章 多平台打包与发布</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch22.html">第二十二章 架构模式与最佳实践</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 4 · 结语与参考</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="ch23.html">第二十三章 未来展望</a></li>
+<li class="toctree-l1"><a class="reference internal" href="appendix-a.html">附录 A Rust 速查表</a></li>
+<li class="toctree-l1"><a class="reference internal" href="appendix-b.html">附录 B Tauri CLI 参考</a></li>
+<li class="toctree-l1"><a class="reference internal" href="appendix-c.html">附录 C 推荐资源</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+<a href="https://github.com/walterfan/walter-rust-tauri-book" target="_blank"
+   class="btn btn-sm btn-source-repository-button"
+   title="源码库"
+   data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+
+</a>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="下载此页面">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/chapters/ch06.md" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="下载源文件"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="列印成 PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="全屏模式"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="亮色"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="暗色"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="搜索" aria-label="搜索" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>第六章 Trait 与泛型：Rust 的多态</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> 目录 </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#trait">6.1 什么是 Trait？</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id1">6.1.1 定义一个 Trait</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id2">6.1.2 为类型实现 Trait</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#self-mut-self-self">6.1.3 方法接收者：<code class="docutils literal notranslate"><span class="pre">&amp;self</span></code>、<code class="docutils literal notranslate"><span class="pre">&amp;mut</span> <span class="pre">self</span></code> 与 <code class="docutils literal notranslate"><span class="pre">self</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id3">6.1.4 三语对比：定义与实现</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#trait-bound">6.2 Trait Bound 与泛型</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id4">6.2.1 泛型函数</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id5">6.2.2 多个 Trait Bound</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id6">6.2.3 三语对比：泛型约束</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#vs">6.3 静态分发 vs 动态分发</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#impl-trait">6.3.1 静态分发（impl Trait / 泛型）</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#dyn-trait">6.3.2 动态分发（dyn Trait）</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id7">6.3.3 dyn Trait 的内存布局</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id8">6.3.4 三语对比：分发机制</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id9">6.4 常用标准库 Trait</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#display-debug">6.4.1 Display 与 Debug</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#clone-copy">6.4.2 Clone 与 Copy</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#from-into">6.4.3 From 与 Into</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#iterator">6.4.4 Iterator</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id10">6.4.5 常用 Trait 速查表</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id11">6.5 关联类型 vs 泛型参数</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id12">6.5.1 关联类型</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id13">6.5.2 泛型参数</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id14">6.5.3 何时用哪个？</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id15">6.6 Trait 对象的限制：对象安全</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id16">规则</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id17">解决方案</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#hive-trait">6.7 实战：为 Hive 项目设计插件 Trait</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id18">6.8 本章小结</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id19">思考题</a></li>
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="trait-rust">
+<h1>第六章 Trait 与泛型：Rust 的多态<a class="headerlink" href="#trait-rust" title="Link to this heading">#</a></h1>
+<blockquote>
+<div><p><em>&quot;Program to an interface, not an implementation.&quot; — Gang of Four</em></p>
+</div></blockquote>
+<p>在 C++ 中我们用虚函数和模板实现多态，在 Java 中我们用 interface 和泛型。Rust 的答案是 <strong>Trait + 泛型</strong>——它既能做到零成本的静态分发，也支持灵活的动态分发，而且在编译期就能捕获大多数类型错误。</p>
+<p>本章将带你全面掌握 Rust 的多态机制，并与你熟悉的 C++/Java 概念逐一对照。</p>
+<pre  class="mermaid">
+        mindmap
+  root((Trait 与泛型))
+    Trait
+      共享行为
+      默认实现
+      trait bound
+    泛型
+      类型参数
+      where 约束
+      单态化
+    分发
+      静态分发
+      dyn Trait
+      对象安全
+    对比
+      Java interface
+      C++ template
+      Go interface
+    </pre><hr class="docutils" />
+<section id="trait">
+<h2>6.1 什么是 Trait？<a class="headerlink" href="#trait" title="Link to this heading">#</a></h2>
+<p>Trait 是 Rust 中定义<strong>共享行为</strong>的方式。你可以把它理解为：</p>
+<ul class="simple">
+<li><p>Java 的 <code class="docutils literal notranslate"><span class="pre">interface</span></code>（但可以有默认实现）</p></li>
+<li><p>C++ 的纯虚基类 + Concepts（C++20）</p></li>
+<li><p>Go 的 <code class="docutils literal notranslate"><span class="pre">interface</span></code>（但是显式实现，非鸭子类型）</p></li>
+</ul>
+<section id="id1">
+<h3>6.1.1 定义一个 Trait<a class="headerlink" href="#id1" title="Link to this heading">#</a></h3>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="sd">/// 任何可以被摘要展示的类型</span>
+<span class="k">trait</span><span class="w"> </span><span class="n">Summary</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">summarize</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">String</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 默认实现——实现者可以选择覆盖</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">preview</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">String</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="fm">format!</span><span class="p">(</span><span class="s">&quot;{}...&quot;</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="bp">self</span><span class="p">.</span><span class="n">summarize</span><span class="p">()[</span><span class="o">..</span><span class="mf">20.</span><span class="n">min</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">summarize</span><span class="p">().</span><span class="n">len</span><span class="p">())])</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="id2">
+<h3>6.1.2 为类型实现 Trait<a class="headerlink" href="#id2" title="Link to this heading">#</a></h3>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">struct</span><span class="w"> </span><span class="nc">Article</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">title</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">,</span>
+<span class="w">    </span><span class="n">author</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">,</span>
+<span class="w">    </span><span class="n">content</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">Summary</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">Article</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">summarize</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">String</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="fm">format!</span><span class="p">(</span><span class="s">&quot;{} by {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">title</span><span class="p">,</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">author</span><span class="p">)</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">Tweet</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">username</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">,</span>
+<span class="w">    </span><span class="n">text</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">Summary</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">Tweet</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">summarize</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">String</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="fm">format!</span><span class="p">(</span><span class="s">&quot;@{}: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">username</span><span class="p">,</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">text</span><span class="p">)</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>使用：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">article</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Article</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">title</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">from</span><span class="p">(</span><span class="s">&quot;Rust 2024&quot;</span><span class="p">),</span>
+<span class="w">        </span><span class="n">author</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">from</span><span class="p">(</span><span class="s">&quot;Walter&quot;</span><span class="p">),</span>
+<span class="w">        </span><span class="n">content</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">from</span><span class="p">(</span><span class="s">&quot;Rust is awesome...&quot;</span><span class="p">),</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">tweet</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Tweet</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">username</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">from</span><span class="p">(</span><span class="s">&quot;rustlang&quot;</span><span class="p">),</span>
+<span class="w">        </span><span class="n">text</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">from</span><span class="p">(</span><span class="s">&quot;Rust 1.80 is out!&quot;</span><span class="p">),</span>
+<span class="w">    </span><span class="p">};</span>
+
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">article</span><span class="p">.</span><span class="n">summarize</span><span class="p">());</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">tweet</span><span class="p">.</span><span class="n">summarize</span><span class="p">());</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="self-mut-self-self">
+<h3>6.1.3 方法接收者：<code class="docutils literal notranslate"><span class="pre">&amp;self</span></code>、<code class="docutils literal notranslate"><span class="pre">&amp;mut</span> <span class="pre">self</span></code> 与 <code class="docutils literal notranslate"><span class="pre">self</span></code><a class="headerlink" href="#self-mut-self-self" title="Link to this heading">#</a></h3>
+<p>Trait 方法的第一个参数经常写成 <code class="docutils literal notranslate"><span class="pre">&amp;self</span></code>、<code class="docutils literal notranslate"><span class="pre">&amp;mut</span> <span class="pre">self</span></code> 或 <code class="docutils literal notranslate"><span class="pre">self</span></code>。它们不是三种不同的对象模型，而是三种<strong>所有权选择</strong>：</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>接收者</p></th>
+<th class="head"><p>含义</p></th>
+<th class="head"><p>适合场景</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">&amp;self</span></code></p></td>
+<td><p>不可变借用当前对象</p></td>
+<td><p>只读查询、格式化、计算派生值</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">&amp;mut</span> <span class="pre">self</span></code></p></td>
+<td><p>可变借用当前对象</p></td>
+<td><p>修改内部状态，但不消费对象</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">self</span></code></p></td>
+<td><p>获取当前对象所有权</p></td>
+<td><p>消费对象、转换对象、链式 builder 结束</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">trait</span><span class="w"> </span><span class="n">Cache</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">name</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="p">;</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">put</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">key</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">);</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">into_entries</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="p">(</span><span class="nb">String</span><span class="p">,</span><span class="w"> </span><span class="nb">String</span><span class="p">)</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>对调用者来说，这三种写法直接决定对象还能不能继续用：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">use</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">collections</span><span class="p">::</span><span class="n">HashMap</span><span class="p">;</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">MemoryCache</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">name</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">,</span>
+<span class="w">    </span><span class="n">entries</span><span class="p">:</span><span class="w"> </span><span class="nc">HashMap</span><span class="o">&lt;</span><span class="nb">String</span><span class="p">,</span><span class="w"> </span><span class="nb">String</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">Cache</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">MemoryCache</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">name</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="o">&amp;</span><span class="bp">self</span><span class="p">.</span><span class="n">name</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">put</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">key</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">entries</span><span class="p">.</span><span class="n">insert</span><span class="p">(</span><span class="n">key</span><span class="p">,</span><span class="w"> </span><span class="n">value</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">into_entries</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="p">(</span><span class="nb">String</span><span class="p">,</span><span class="w"> </span><span class="nb">String</span><span class="p">)</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">entries</span><span class="p">.</span><span class="n">into_iter</span><span class="p">().</span><span class="n">collect</span><span class="p">()</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">fn</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">cache</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">MemoryCache</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;local&quot;</span><span class="p">.</span><span class="n">into</span><span class="p">(),</span>
+<span class="w">        </span><span class="n">entries</span><span class="p">:</span><span class="w"> </span><span class="nc">HashMap</span><span class="p">::</span><span class="n">new</span><span class="p">(),</span>
+<span class="w">    </span><span class="p">};</span>
+
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">cache</span><span class="p">.</span><span class="n">name</span><span class="p">());</span><span class="w">               </span><span class="c1">// &amp;self：cache 仍可继续用</span>
+<span class="w">    </span><span class="n">cache</span><span class="p">.</span><span class="n">put</span><span class="p">(</span><span class="s">&quot;theme&quot;</span><span class="p">.</span><span class="n">into</span><span class="p">(),</span><span class="w"> </span><span class="s">&quot;dark&quot;</span><span class="p">.</span><span class="n">into</span><span class="p">());</span><span class="w">   </span><span class="c1">// &amp;mut self：修改 cache</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">entries</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cache</span><span class="p">.</span><span class="n">into_entries</span><span class="p">();</span><span class="w">         </span><span class="c1">// self：cache 被消费</span>
+
+<span class="w">    </span><span class="c1">// println!(&quot;{}&quot;, cache.name());            // ❌ cache 已经移动</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{:?}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">entries</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>经验法则：默认先选 <code class="docutils literal notranslate"><span class="pre">&amp;self</span></code>；需要改状态时选 <code class="docutils literal notranslate"><span class="pre">&amp;mut</span> <span class="pre">self</span></code>；方法的语义是“把这个对象变成另一个东西”时才选 <code class="docutils literal notranslate"><span class="pre">self</span></code>。</p>
+</section>
+<section id="id3">
+<h3>6.1.4 三语对比：定义与实现<a class="headerlink" href="#id3" title="Link to this heading">#</a></h3>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>特性</p></th>
+<th class="head"><p>Rust</p></th>
+<th class="head"><p>C++</p></th>
+<th class="head"><p>Java</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>定义接口</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">trait</span> <span class="pre">Summary</span> <span class="pre">{</span> <span class="pre">...</span> <span class="pre">}</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">class</span> <span class="pre">Summary</span> <span class="pre">{</span> <span class="pre">virtual</span> <span class="pre">...</span> <span class="pre">=</span> <span class="pre">0;</span> <span class="pre">}</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">interface</span> <span class="pre">Summary</span> <span class="pre">{</span> <span class="pre">...</span> <span class="pre">}</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>实现接口</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">impl</span> <span class="pre">Summary</span> <span class="pre">for</span> <span class="pre">Article</span> <span class="pre">{</span> <span class="pre">...</span> <span class="pre">}</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">class</span> <span class="pre">Article</span> <span class="pre">:</span> <span class="pre">public</span> <span class="pre">Summary</span> <span class="pre">{</span> <span class="pre">...</span> <span class="pre">}</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">class</span> <span class="pre">Article</span> <span class="pre">implements</span> <span class="pre">Summary</span> <span class="pre">{</span> <span class="pre">...</span> <span class="pre">}</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>默认实现</p></td>
+<td><p>✅ trait 中直接写</p></td>
+<td><p>✅ 虚函数提供默认实现</p></td>
+<td><p>✅ <code class="docutils literal notranslate"><span class="pre">default</span></code> 方法（Java 8+）</p></td>
+</tr>
+<tr class="row-odd"><td><p>为外部类型实现</p></td>
+<td><p>✅（孤儿规则限制下）</p></td>
+<td><p>❌ 需要继承或 adapter</p></td>
+<td><p>❌ 不可能</p></td>
+</tr>
+<tr class="row-even"><td><p>多重实现</p></td>
+<td><p>✅ 一个类型可 impl 多个 trait</p></td>
+<td><p>✅ 多重继承（菱形问题）</p></td>
+<td><p>✅ 多个 interface</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="trait-bound">
+<h2>6.2 Trait Bound 与泛型<a class="headerlink" href="#trait-bound" title="Link to this heading">#</a></h2>
+<section id="id4">
+<h3>6.2.1 泛型函数<a class="headerlink" href="#id4" title="Link to this heading">#</a></h3>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// 接受任何实现了 Summary 的类型</span>
+<span class="k">fn</span><span class="w"> </span><span class="nf">notify</span><span class="p">(</span><span class="n">item</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">impl</span><span class="w"> </span><span class="n">Summary</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Breaking: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">item</span><span class="p">.</span><span class="n">summarize</span><span class="p">());</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>这是语法糖，完整写法是 <strong>Trait Bound</strong>：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span><span class="w"> </span><span class="nf">notify</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span><span class="w"> </span><span class="nc">Summary</span><span class="o">&gt;</span><span class="p">(</span><span class="n">item</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">T</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Breaking: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">item</span><span class="p">.</span><span class="n">summarize</span><span class="p">());</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="id5">
+<h3>6.2.2 多个 Trait Bound<a class="headerlink" href="#id5" title="Link to this heading">#</a></h3>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">use</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">fmt</span><span class="p">::</span><span class="n">Display</span><span class="p">;</span>
+
+<span class="k">fn</span><span class="w"> </span><span class="nf">notify_and_display</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span><span class="w"> </span><span class="nc">Summary</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">Display</span><span class="o">&gt;</span><span class="p">(</span><span class="n">item</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">T</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">item</span><span class="p">.</span><span class="n">summarize</span><span class="p">());</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">item</span><span class="p">);</span><span class="w">  </span><span class="c1">// 要求 T 同时实现 Display</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>当约束变多时，使用 <code class="docutils literal notranslate"><span class="pre">where</span></code> 子句更清晰：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span><span class="w"> </span><span class="nf">complex_function</span><span class="o">&lt;</span><span class="n">T</span><span class="p">,</span><span class="w"> </span><span class="n">U</span><span class="o">&gt;</span><span class="p">(</span><span class="n">t</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">T</span><span class="p">,</span><span class="w"> </span><span class="n">u</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">U</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">String</span>
+<span class="nc">where</span>
+<span class="w">    </span><span class="n">T</span><span class="p">:</span><span class="w"> </span><span class="nc">Summary</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">Clone</span><span class="p">,</span>
+<span class="w">    </span><span class="n">U</span><span class="p">:</span><span class="w"> </span><span class="nc">Display</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">Debug</span><span class="p">,</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="fm">format!</span><span class="p">(</span><span class="s">&quot;{} - {:?}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">t</span><span class="p">.</span><span class="n">summarize</span><span class="p">(),</span><span class="w"> </span><span class="n">u</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="id6">
+<h3>6.2.3 三语对比：泛型约束<a class="headerlink" href="#id6" title="Link to this heading">#</a></h3>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>特性</p></th>
+<th class="head"><p>Rust</p></th>
+<th class="head"><p>C++</p></th>
+<th class="head"><p>Java</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>泛型语法</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">fn</span> <span class="pre">foo&lt;T&gt;(x:</span> <span class="pre">T)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">template&lt;typename</span> <span class="pre">T&gt;</span> <span class="pre">void</span> <span class="pre">foo(T</span> <span class="pre">x)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&lt;T&gt;</span> <span class="pre">void</span> <span class="pre">foo(T</span> <span class="pre">x)</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>约束</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">T:</span> <span class="pre">Trait</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">concept</span></code> (C++20) 或 SFINAE</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">T</span> <span class="pre">extends</span> <span class="pre">Interface</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>编译时检查</p></td>
+<td><p>✅ 严格</p></td>
+<td><p>✅ (concept) / ❌ (模板错误信息差)</p></td>
+<td><p>✅ 类型擦除后有限检查</p></td>
+</tr>
+<tr class="row-odd"><td><p>单态化</p></td>
+<td><p>✅ 每个具体类型生成一份代码</p></td>
+<td><p>✅ 模板实例化</p></td>
+<td><p>❌ 类型擦除，运行时一份代码</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<pre  class="mermaid">
+        graph LR
+    A[泛型函数 notify&amp;lt;T&amp;gt;] --&gt;|T = Article| B[notify_Article 单态化版本]
+    A --&gt;|T = Tweet| C[notify_Tweet 单态化版本]
+    style A fill:#f9f,stroke:#333
+    style B fill:#bbf,stroke:#333
+    style C fill:#bbf,stroke:#333
+    </pre><blockquote>
+<div><p><strong>单态化（Monomorphization）</strong>：Rust 编译器为每个具体类型生成专用代码，因此泛型调用的性能等同于手写具体类型的代码——这就是&quot;零成本抽象&quot;。</p>
+</div></blockquote>
+</section>
+</section>
+<hr class="docutils" />
+<section id="vs">
+<h2>6.3 静态分发 vs 动态分发<a class="headerlink" href="#vs" title="Link to this heading">#</a></h2>
+<p>这是 Rust 多态最核心的设计决策。</p>
+<section id="impl-trait">
+<h3>6.3.1 静态分发（impl Trait / 泛型）<a class="headerlink" href="#impl-trait" title="Link to this heading">#</a></h3>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span><span class="w"> </span><span class="nf">print_summary</span><span class="p">(</span><span class="n">item</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">impl</span><span class="w"> </span><span class="n">Summary</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">item</span><span class="p">.</span><span class="n">summarize</span><span class="p">());</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>编译时确定具体类型</p></li>
+<li><p>生成专用代码（单态化）</p></li>
+<li><p><strong>零运行时开销</strong></p></li>
+<li><p>代价：二进制体积可能增大</p></li>
+</ul>
+</section>
+<section id="dyn-trait">
+<h3>6.3.2 动态分发（dyn Trait）<a class="headerlink" href="#dyn-trait" title="Link to this heading">#</a></h3>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span><span class="w"> </span><span class="nf">print_summary_dyn</span><span class="p">(</span><span class="n">item</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">dyn</span><span class="w"> </span><span class="n">Summary</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">item</span><span class="p">.</span><span class="n">summarize</span><span class="p">());</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<ul class="simple">
+<li><p>通过 <strong>虚表（vtable）</strong> 在运行时查找方法</p></li>
+<li><p>只生成一份代码</p></li>
+<li><p>有一次指针间接寻址的开销</p></li>
+<li><p>适合需要<strong>异构集合</strong>的场景</p></li>
+</ul>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">article</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Article</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">title</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">from</span><span class="p">(</span><span class="s">&quot;Rust Traits&quot;</span><span class="p">),</span>
+<span class="w">        </span><span class="n">author</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">from</span><span class="p">(</span><span class="s">&quot;Walter&quot;</span><span class="p">),</span>
+<span class="w">        </span><span class="n">content</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">from</span><span class="p">(</span><span class="s">&quot;...&quot;</span><span class="p">),</span>
+<span class="w">    </span><span class="p">};</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">tweet</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Tweet</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">username</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">from</span><span class="p">(</span><span class="s">&quot;rustlang&quot;</span><span class="p">),</span>
+<span class="w">        </span><span class="n">text</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">::</span><span class="n">from</span><span class="p">(</span><span class="s">&quot;Hello!&quot;</span><span class="p">),</span>
+<span class="w">    </span><span class="p">};</span>
+
+<span class="w">    </span><span class="c1">// 异构集合：不同类型放在同一个 Vec 中</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">items</span><span class="p">:</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">Box</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">Summary</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="fm">vec!</span><span class="p">[</span>
+<span class="w">        </span><span class="nb">Box</span><span class="p">::</span><span class="n">new</span><span class="p">(</span><span class="n">article</span><span class="p">),</span>
+<span class="w">        </span><span class="nb">Box</span><span class="p">::</span><span class="n">new</span><span class="p">(</span><span class="n">tweet</span><span class="p">),</span>
+<span class="w">    </span><span class="p">];</span>
+
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">item</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="o">&amp;</span><span class="n">items</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">item</span><span class="p">.</span><span class="n">summarize</span><span class="p">());</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="id7">
+<h3>6.3.3 dyn Trait 的内存布局<a class="headerlink" href="#id7" title="Link to this heading">#</a></h3>
+<pre  class="mermaid">
+        graph TD
+    subgraph &quot;Box&amp;lt;dyn Summary&amp;gt; = 胖指针&quot;
+        P1[数据指针] --&gt; D[Article 实例数据]
+        P2[vtable 指针] --&gt; V[vtable]
+    end
+    subgraph &quot;vtable&quot;
+        V --&gt; M1[&quot;summarize() 函数指针&quot;]
+        V --&gt; M2[&quot;preview() 函数指针&quot;]
+        V --&gt; M3[&quot;drop() 函数指针&quot;]
+        V --&gt; M4[&quot;size / align&quot;]
+    end
+    style P1 fill:#fbb,stroke:#333
+    style P2 fill:#bfb,stroke:#333
+    </pre></section>
+<section id="id8">
+<h3>6.3.4 三语对比：分发机制<a class="headerlink" href="#id8" title="Link to this heading">#</a></h3>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>分发方式</p></th>
+<th class="head"><p>Rust</p></th>
+<th class="head"><p>C++</p></th>
+<th class="head"><p>Java</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>静态分发</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">impl</span> <span class="pre">Trait</span></code> / 泛型</p></td>
+<td><p>模板</p></td>
+<td><p>不支持（泛型是类型擦除）</p></td>
+</tr>
+<tr class="row-odd"><td><p>动态分发</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">dyn</span> <span class="pre">Trait</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">virtual</span></code> 函数</p></td>
+<td><p>接口方法调用（默认动态）</p></td>
+</tr>
+<tr class="row-even"><td><p>选择权</p></td>
+<td><p><strong>程序员显式选择</strong></p></td>
+<td><p>是否加 <code class="docutils literal notranslate"><span class="pre">virtual</span></code></p></td>
+<td><p>无选择（总是动态）</p></td>
+</tr>
+<tr class="row-odd"><td><p>性能</p></td>
+<td><p>静态 ≈ 零开销；动态 ≈ 一次间接调用</p></td>
+<td><p>同 Rust</p></td>
+<td><p>总是有虚调用开销</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id9">
+<h2>6.4 常用标准库 Trait<a class="headerlink" href="#id9" title="Link to this heading">#</a></h2>
+<p>Rust 标准库定义了大量 trait，掌握它们是写出地道 Rust 代码的关键。</p>
+<section id="display-debug">
+<h3>6.4.1 Display 与 Debug<a class="headerlink" href="#display-debug" title="Link to this heading">#</a></h3>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">use</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">fmt</span><span class="p">;</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">Point</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">x</span><span class="p">:</span><span class="w"> </span><span class="kt">f64</span><span class="p">,</span>
+<span class="w">    </span><span class="n">y</span><span class="p">:</span><span class="w"> </span><span class="kt">f64</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="c1">// Display：面向用户的格式化</span>
+<span class="k">impl</span><span class="w"> </span><span class="n">fmt</span><span class="p">::</span><span class="n">Display</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">Point</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">fmt</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">f</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="n">fmt</span><span class="p">::</span><span class="n">Formatter</span><span class="o">&lt;&#39;</span><span class="nb">_</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nc">fmt</span><span class="p">::</span><span class="nb">Result</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="fm">write!</span><span class="p">(</span><span class="n">f</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;({}, {})&quot;</span><span class="p">,</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">x</span><span class="p">,</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">y</span><span class="p">)</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="c1">// Debug：面向开发者的格式化（通常用 derive 自动生成）</span>
+<span class="cp">#[derive(Debug)]</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">Rect</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">top_left</span><span class="p">:</span><span class="w"> </span><span class="nc">Point</span><span class="p">,</span>
+<span class="w">    </span><span class="n">bottom_right</span><span class="p">:</span><span class="w"> </span><span class="nc">Point</span><span class="p">,</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="clone-copy">
+<h3>6.4.2 Clone 与 Copy<a class="headerlink" href="#clone-copy" title="Link to this heading">#</a></h3>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// Clone：显式深拷贝</span>
+<span class="cp">#[derive(Clone)]</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">Config</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">name</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">,</span>
+<span class="w">    </span><span class="n">values</span><span class="p">:</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="kt">i32</span><span class="o">&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="c1">// Copy：隐式按位复制（仅适用于栈上的简单类型）</span>
+<span class="cp">#[derive(Copy, Clone)]</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">Color</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">r</span><span class="p">:</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span>
+<span class="w">    </span><span class="n">g</span><span class="p">:</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span>
+<span class="w">    </span><span class="n">b</span><span class="p">:</span><span class="w"> </span><span class="kt">u8</span><span class="p">,</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>规则</strong>：实现 <code class="docutils literal notranslate"><span class="pre">Copy</span></code> 的类型必须同时实现 <code class="docutils literal notranslate"><span class="pre">Clone</span></code>；包含堆数据（如 <code class="docutils literal notranslate"><span class="pre">String</span></code>、<code class="docutils literal notranslate"><span class="pre">Vec</span></code>）的类型不能实现 <code class="docutils literal notranslate"><span class="pre">Copy</span></code>。</p>
+</section>
+<section id="from-into">
+<h3>6.4.3 From 与 Into<a class="headerlink" href="#from-into" title="Link to this heading">#</a></h3>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">struct</span><span class="w"> </span><span class="nc">Celsius</span><span class="p">(</span><span class="kt">f64</span><span class="p">);</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">Fahrenheit</span><span class="p">(</span><span class="kt">f64</span><span class="p">);</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="nb">From</span><span class="o">&lt;</span><span class="n">Celsius</span><span class="o">&gt;</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">Fahrenheit</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">from</span><span class="p">(</span><span class="n">c</span><span class="p">:</span><span class="w"> </span><span class="nc">Celsius</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nc">Self</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">Fahrenheit</span><span class="p">(</span><span class="n">c</span><span class="p">.</span><span class="mi">0</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">9.0</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="mf">5.0</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mf">32.0</span><span class="p">)</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">fn</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">boiling</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Celsius</span><span class="p">(</span><span class="mf">100.0</span><span class="p">);</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">f</span><span class="p">:</span><span class="w"> </span><span class="nc">Fahrenheit</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">boiling</span><span class="p">.</span><span class="n">into</span><span class="p">();</span><span class="w">  </span><span class="c1">// 自动获得 Into</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Water boils at {}°F&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">f</span><span class="p">.</span><span class="mi">0</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="iterator">
+<h3>6.4.4 Iterator<a class="headerlink" href="#iterator" title="Link to this heading">#</a></h3>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">struct</span><span class="w"> </span><span class="nc">Counter</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">count</span><span class="p">:</span><span class="w"> </span><span class="kt">u32</span><span class="p">,</span>
+<span class="w">    </span><span class="n">max</span><span class="p">:</span><span class="w"> </span><span class="kt">u32</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">Counter</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">new</span><span class="p">(</span><span class="n">max</span><span class="p">:</span><span class="w"> </span><span class="kt">u32</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nc">Self</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">Counter</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">count</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">max</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="nb">Iterator</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">Counter</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">type</span><span class="w"> </span><span class="nc">Item</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kt">u32</span><span class="p">;</span><span class="w">  </span><span class="c1">// 关联类型</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">next</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Option</span><span class="o">&lt;</span><span class="bp">Self</span><span class="p">::</span><span class="n">Item</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">if</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">count</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">max</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="bp">self</span><span class="p">.</span><span class="n">count</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">            </span><span class="nb">Some</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">count</span><span class="p">)</span>
+<span class="w">        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="nb">None</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">fn</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">sum</span><span class="p">:</span><span class="w"> </span><span class="kt">u32</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Counter</span><span class="p">::</span><span class="n">new</span><span class="p">(</span><span class="mi">5</span><span class="p">)</span>
+<span class="w">        </span><span class="p">.</span><span class="n">filter</span><span class="p">(</span><span class="o">|</span><span class="n">x</span><span class="o">|</span><span class="w"> </span><span class="n">x</span><span class="w"> </span><span class="o">%</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">0</span><span class="p">)</span>
+<span class="w">        </span><span class="p">.</span><span class="n">sum</span><span class="p">();</span>
+<span class="w">    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Sum of even numbers: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">sum</span><span class="p">);</span><span class="w"> </span><span class="c1">// 2 + 4 = 6</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="id10">
+<h3>6.4.5 常用 Trait 速查表<a class="headerlink" href="#id10" title="Link to this heading">#</a></h3>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>Trait</p></th>
+<th class="head"><p>用途</p></th>
+<th class="head"><p>常见 derive</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Debug</span></code></p></td>
+<td><p>调试输出 <code class="docutils literal notranslate"><span class="pre">{:?}</span></code></p></td>
+<td><p>✅ <code class="docutils literal notranslate"><span class="pre">#[derive(Debug)]</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Display</span></code></p></td>
+<td><p>用户友好输出 <code class="docutils literal notranslate"><span class="pre">{}</span></code></p></td>
+<td><p>❌ 需手动实现</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Clone</span></code></p></td>
+<td><p>显式深拷贝 <code class="docutils literal notranslate"><span class="pre">.clone()</span></code></p></td>
+<td><p>✅ <code class="docutils literal notranslate"><span class="pre">#[derive(Clone)]</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Copy</span></code></p></td>
+<td><p>隐式按位复制</p></td>
+<td><p>✅ <code class="docutils literal notranslate"><span class="pre">#[derive(Copy)]</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">PartialEq</span></code> / <code class="docutils literal notranslate"><span class="pre">Eq</span></code></p></td>
+<td><p>相等比较 <code class="docutils literal notranslate"><span class="pre">==</span></code></p></td>
+<td><p>✅ <code class="docutils literal notranslate"><span class="pre">#[derive(PartialEq,</span> <span class="pre">Eq)]</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">PartialOrd</span></code> / <code class="docutils literal notranslate"><span class="pre">Ord</span></code></p></td>
+<td><p>排序比较 <code class="docutils literal notranslate"><span class="pre">&lt;</span></code> <code class="docutils literal notranslate"><span class="pre">&gt;</span></code></p></td>
+<td><p>✅ <code class="docutils literal notranslate"><span class="pre">#[derive(PartialOrd,</span> <span class="pre">Ord)]</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Hash</span></code></p></td>
+<td><p>哈希（用于 HashMap 的 key）</p></td>
+<td><p>✅ <code class="docutils literal notranslate"><span class="pre">#[derive(Hash)]</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Default</span></code></p></td>
+<td><p>默认值</p></td>
+<td><p>✅ <code class="docutils literal notranslate"><span class="pre">#[derive(Default)]</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">From</span></code> / <code class="docutils literal notranslate"><span class="pre">Into</span></code></p></td>
+<td><p>类型转换</p></td>
+<td><p>❌ 需手动实现</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Iterator</span></code></p></td>
+<td><p>迭代器</p></td>
+<td><p>❌ 需手动实现</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Drop</span></code></p></td>
+<td><p>析构逻辑（类似 C++ 析构函数）</p></td>
+<td><p>❌ 需手动实现</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id11">
+<h2>6.5 关联类型 vs 泛型参数<a class="headerlink" href="#id11" title="Link to this heading">#</a></h2>
+<section id="id12">
+<h3>6.5.1 关联类型<a class="headerlink" href="#id12" title="Link to this heading">#</a></h3>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">trait</span><span class="w"> </span><span class="n">Graph</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">type</span><span class="w"> </span><span class="nc">Node</span><span class="p">;</span><span class="w">      </span><span class="c1">// 关联类型</span>
+<span class="w">    </span><span class="k">type</span><span class="w"> </span><span class="nc">Edge</span><span class="p">;</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">edges</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">node</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">Self</span><span class="p">::</span><span class="n">Node</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="bp">Self</span><span class="p">::</span><span class="n">Edge</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="id13">
+<h3>6.5.2 泛型参数<a class="headerlink" href="#id13" title="Link to this heading">#</a></h3>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">trait</span><span class="w"> </span><span class="n">Converter</span><span class="o">&lt;</span><span class="nb">From</span><span class="p">,</span><span class="w"> </span><span class="n">To</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">convert</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">input</span><span class="p">:</span><span class="w"> </span><span class="nb">From</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nc">To</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="id14">
+<h3>6.5.3 何时用哪个？<a class="headerlink" href="#id14" title="Link to this heading">#</a></h3>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>场景</p></th>
+<th class="head"><p>选择</p></th>
+<th class="head"><p>理由</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>一个类型只有一种实现</p></td>
+<td><p>关联类型</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Iterator</span></code> 的 <code class="docutils literal notranslate"><span class="pre">Item</span></code> 对每个类型只有一种</p></td>
+</tr>
+<tr class="row-odd"><td><p>一个类型可能有多种实现</p></td>
+<td><p>泛型参数</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">From&lt;T&gt;</span></code> 可以从多种类型转换</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<pre  class="mermaid">
+        flowchart TD
+    Q[&quot;一个类型对此 trait&lt;br&gt;是否有多种实现？&quot;]
+    Q --&gt;|否，只有一种| A[&quot;用关联类型&lt;br&gt;type Item = ...&quot;]
+    Q --&gt;|是，可能多种| B[&quot;用泛型参数&lt;br&gt;Trait&amp;lt;T&amp;gt;&quot;]
+    A --&gt; E1[&quot;例：Iterator&quot;]
+    B --&gt; E2[&quot;例：From&amp;lt;T&amp;gt;&quot;]
+    style Q fill:#ffe,stroke:#333
+    style A fill:#bfb,stroke:#333
+    style B fill:#bbf,stroke:#333
+    </pre></section>
+</section>
+<hr class="docutils" />
+<section id="id15">
+<h2>6.6 Trait 对象的限制：对象安全<a class="headerlink" href="#id15" title="Link to this heading">#</a></h2>
+<p>并非所有 trait 都能用作 <code class="docutils literal notranslate"><span class="pre">dyn</span> <span class="pre">Trait</span></code>。能用作 trait 对象的 trait 必须是<strong>对象安全的（object safe）</strong>。</p>
+<section id="id16">
+<h3>规则<a class="headerlink" href="#id16" title="Link to this heading">#</a></h3>
+<p>一个 trait 是对象安全的，当且仅当：</p>
+<ol class="arabic simple">
+<li><p><strong>所有方法的接收者是 <code class="docutils literal notranslate"><span class="pre">&amp;self</span></code>、<code class="docutils literal notranslate"><span class="pre">&amp;mut</span> <span class="pre">self</span></code> 或 <code class="docutils literal notranslate"><span class="pre">self:</span> <span class="pre">Box&lt;Self&gt;</span></code></strong></p></li>
+<li><p><strong>方法没有泛型参数</strong></p></li>
+<li><p><strong>方法的返回类型不是 <code class="docutils literal notranslate"><span class="pre">Self</span></code></strong>（<code class="docutils literal notranslate"><span class="pre">Clone</span></code> 的 <code class="docutils literal notranslate"><span class="pre">fn</span> <span class="pre">clone(&amp;self)</span> <span class="pre">-&gt;</span> <span class="pre">Self</span></code> 就不行）</p></li>
+</ol>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// ✅ 对象安全</span>
+<span class="k">trait</span><span class="w"> </span><span class="n">Drawable</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">draw</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">);</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">area</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kt">f64</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">// ❌ 不是对象安全的——返回 Self</span>
+<span class="k">trait</span><span class="w"> </span><span class="n">Cloneable</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">clone_self</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nc">Self</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="c1">// ❌ 不是对象安全的——方法有泛型参数</span>
+<span class="k">trait</span><span class="w"> </span><span class="n">Serializer</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">serialize</span><span class="o">&lt;</span><span class="n">W</span><span class="p">:</span><span class="w"> </span><span class="nc">std</span><span class="p">::</span><span class="n">io</span><span class="p">::</span><span class="n">Write</span><span class="o">&gt;</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">writer</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">mut</span><span class="w"> </span><span class="n">W</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="id17">
+<h3>解决方案<a class="headerlink" href="#id17" title="Link to this heading">#</a></h3>
+<p>如果你需要在 trait 对象中使用类似 <code class="docutils literal notranslate"><span class="pre">Clone</span></code> 的功能：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">trait</span><span class="w"> </span><span class="n">CloneBox</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">clone_box</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Box</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">CloneBox</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="o">&lt;</span><span class="n">T</span><span class="p">:</span><span class="w"> </span><span class="nb">Clone</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="o">&#39;</span><span class="nb">static</span><span class="o">&gt;</span><span class="w"> </span><span class="n">CloneBox</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">T</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">clone_box</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Box</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">CloneBox</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nb">Box</span><span class="p">::</span><span class="n">new</span><span class="p">(</span><span class="bp">self</span><span class="p">.</span><span class="n">clone</span><span class="p">())</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="hive-trait">
+<h2>6.7 实战：为 Hive 项目设计插件 Trait<a class="headerlink" href="#hive-trait" title="Link to this heading">#</a></h2>
+<p>让我们用本章知识为贯穿全书的 Hive 项目设计一个插件系统的 trait：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">use</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">any</span><span class="p">::</span><span class="n">Any</span><span class="p">;</span>
+
+<span class="sd">/// 插件元数据</span>
+<span class="cp">#[derive(Debug, Clone)]</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">PluginMeta</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">name</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">,</span>
+<span class="w">    </span><span class="n">version</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">,</span>
+<span class="w">    </span><span class="n">description</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="sd">/// Hive 插件 trait</span>
+<span class="k">trait</span><span class="w"> </span><span class="n">Plugin</span><span class="p">:</span><span class="w"> </span><span class="nc">Any</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">Send</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">Sync</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="sd">/// 返回插件元数据</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">meta</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nc">PluginMeta</span><span class="p">;</span>
+
+<span class="w">    </span><span class="sd">/// 插件初始化</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">on_load</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span><span class="w"> </span><span class="nb">Box</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">error</span><span class="p">::</span><span class="n">Error</span><span class="o">&gt;&gt;</span><span class="p">;</span>
+
+<span class="w">    </span><span class="sd">/// 插件卸载</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">on_unload</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span><span class="w"> </span><span class="nb">Box</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">error</span><span class="p">::</span><span class="n">Error</span><span class="o">&gt;&gt;</span><span class="p">;</span>
+
+<span class="w">    </span><span class="sd">/// 处理事件</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">handle_event</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">event</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="p">,</span><span class="w"> </span><span class="n">payload</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Option</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="sd">/// 一个示例插件：Markdown 预览</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">MarkdownPlugin</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">meta</span><span class="p">:</span><span class="w"> </span><span class="nc">PluginMeta</span><span class="p">,</span>
+<span class="w">    </span><span class="n">loaded</span><span class="p">:</span><span class="w"> </span><span class="kt">bool</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">MarkdownPlugin</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">new</span><span class="p">()</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nc">Self</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">meta</span><span class="p">:</span><span class="w"> </span><span class="nc">PluginMeta</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;markdown-preview&quot;</span><span class="p">.</span><span class="n">into</span><span class="p">(),</span>
+<span class="w">                </span><span class="n">version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;0.1.0&quot;</span><span class="p">.</span><span class="n">into</span><span class="p">(),</span>
+<span class="w">                </span><span class="n">description</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;Render Markdown to HTML&quot;</span><span class="p">.</span><span class="n">into</span><span class="p">(),</span>
+<span class="w">            </span><span class="p">},</span>
+<span class="w">            </span><span class="n">loaded</span><span class="p">:</span><span class="w"> </span><span class="nc">false</span><span class="p">,</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">Plugin</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">MarkdownPlugin</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">meta</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nc">PluginMeta</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">meta</span><span class="p">.</span><span class="n">clone</span><span class="p">()</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">on_load</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span><span class="w"> </span><span class="nb">Box</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">error</span><span class="p">::</span><span class="n">Error</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;[{}] Plugin loaded&quot;</span><span class="p">,</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">meta</span><span class="p">.</span><span class="n">name</span><span class="p">);</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">loaded</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="p">;</span>
+<span class="w">        </span><span class="nb">Ok</span><span class="p">(())</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">on_unload</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span><span class="w"> </span><span class="nb">Box</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">error</span><span class="p">::</span><span class="n">Error</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;[{}] Plugin unloaded&quot;</span><span class="p">,</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">meta</span><span class="p">.</span><span class="n">name</span><span class="p">);</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">loaded</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="p">;</span>
+<span class="w">        </span><span class="nb">Ok</span><span class="p">(())</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">handle_event</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">event</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="p">,</span><span class="w"> </span><span class="n">payload</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Option</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">match</span><span class="w"> </span><span class="n">event</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="s">&quot;render&quot;</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="c1">// 简化的 Markdown → HTML 转换</span>
+<span class="w">                </span><span class="kd">let</span><span class="w"> </span><span class="n">html</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">payload</span>
+<span class="w">                    </span><span class="p">.</span><span class="n">lines</span><span class="p">()</span>
+<span class="w">                    </span><span class="p">.</span><span class="n">map</span><span class="p">(</span><span class="o">|</span><span class="n">line</span><span class="o">|</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                        </span><span class="k">if</span><span class="w"> </span><span class="n">line</span><span class="p">.</span><span class="n">starts_with</span><span class="p">(</span><span class="s">&quot;# &quot;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                            </span><span class="fm">format!</span><span class="p">(</span><span class="s">&quot;&lt;h1&gt;{}&lt;/h1&gt;&quot;</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">line</span><span class="p">[</span><span class="mi">2</span><span class="o">..</span><span class="p">])</span>
+<span class="w">                        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">line</span><span class="p">.</span><span class="n">starts_with</span><span class="p">(</span><span class="s">&quot;## &quot;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                            </span><span class="fm">format!</span><span class="p">(</span><span class="s">&quot;&lt;h2&gt;{}&lt;/h2&gt;&quot;</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">line</span><span class="p">[</span><span class="mi">3</span><span class="o">..</span><span class="p">])</span>
+<span class="w">                        </span><span class="p">}</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                            </span><span class="fm">format!</span><span class="p">(</span><span class="s">&quot;&lt;p&gt;{}&lt;/p&gt;&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">line</span><span class="p">)</span>
+<span class="w">                        </span><span class="p">}</span>
+<span class="w">                    </span><span class="p">})</span>
+<span class="w">                    </span><span class="p">.</span><span class="n">collect</span><span class="p">::</span><span class="o">&lt;</span><span class="nb">Vec</span><span class="o">&lt;</span><span class="n">_</span><span class="o">&gt;&gt;</span><span class="p">()</span>
+<span class="w">                    </span><span class="p">.</span><span class="n">join</span><span class="p">(</span><span class="s">&quot;</span><span class="se">\n</span><span class="s">&quot;</span><span class="p">);</span>
+<span class="w">                </span><span class="nb">Some</span><span class="p">(</span><span class="n">html</span><span class="p">)</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">            </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="nb">None</span><span class="p">,</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="sd">/// 插件管理器——使用 trait 对象存储异构插件</span>
+<span class="k">struct</span><span class="w"> </span><span class="nc">PluginManager</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">plugins</span><span class="p">:</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">Box</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">Plugin</span><span class="o">&gt;&gt;</span><span class="p">,</span>
+<span class="p">}</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">PluginManager</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">new</span><span class="p">()</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nc">Self</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="bp">Self</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">plugins</span><span class="p">:</span><span class="w"> </span><span class="nb">Vec</span><span class="p">::</span><span class="n">new</span><span class="p">()</span><span class="w"> </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">register</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">plugin</span><span class="p">:</span><span class="w"> </span><span class="nb">Box</span><span class="o">&lt;</span><span class="k">dyn</span><span class="w"> </span><span class="n">Plugin</span><span class="o">&gt;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Registered plugin: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">plugin</span><span class="p">.</span><span class="n">meta</span><span class="p">().</span><span class="n">name</span><span class="p">);</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">plugins</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">plugin</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">load_all</span><span class="p">(</span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">for</span><span class="w"> </span><span class="n">plugin</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="o">&amp;</span><span class="k">mut</span><span class="w"> </span><span class="bp">self</span><span class="p">.</span><span class="n">plugins</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="kd">let</span><span class="w"> </span><span class="nb">Err</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">plugin</span><span class="p">.</span><span class="n">on_load</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="fm">eprintln!</span><span class="p">(</span><span class="s">&quot;Failed to load {}: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">plugin</span><span class="p">.</span><span class="n">meta</span><span class="p">().</span><span class="n">name</span><span class="p">,</span><span class="w"> </span><span class="n">e</span><span class="p">);</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">broadcast_event</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">,</span><span class="w"> </span><span class="n">event</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="p">,</span><span class="w"> </span><span class="n">payload</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Vec</span><span class="o">&lt;</span><span class="nb">String</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="bp">self</span><span class="p">.</span><span class="n">plugins</span>
+<span class="w">            </span><span class="p">.</span><span class="n">iter</span><span class="p">()</span>
+<span class="w">            </span><span class="p">.</span><span class="n">filter_map</span><span class="p">(</span><span class="o">|</span><span class="n">p</span><span class="o">|</span><span class="w"> </span><span class="n">p</span><span class="p">.</span><span class="n">handle_event</span><span class="p">(</span><span class="n">event</span><span class="p">,</span><span class="w"> </span><span class="n">payload</span><span class="p">))</span>
+<span class="w">            </span><span class="p">.</span><span class="n">collect</span><span class="p">()</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">fn</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="k">mut</span><span class="w"> </span><span class="n">manager</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">PluginManager</span><span class="p">::</span><span class="n">new</span><span class="p">();</span>
+<span class="w">    </span><span class="n">manager</span><span class="p">.</span><span class="n">register</span><span class="p">(</span><span class="nb">Box</span><span class="p">::</span><span class="n">new</span><span class="p">(</span><span class="n">MarkdownPlugin</span><span class="p">::</span><span class="n">new</span><span class="p">()));</span>
+<span class="w">    </span><span class="n">manager</span><span class="p">.</span><span class="n">load_all</span><span class="p">();</span>
+
+<span class="w">    </span><span class="kd">let</span><span class="w"> </span><span class="n">results</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">manager</span><span class="p">.</span><span class="n">broadcast_event</span><span class="p">(</span><span class="s">&quot;render&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;# Hello</span><span class="se">\n</span><span class="s">## World</span><span class="se">\n</span><span class="s">This is Hive.&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">html</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="n">results</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;{}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">html</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">trait</span> <span class="pre">Plugin:</span> <span class="pre">Any</span> <span class="pre">+</span> <span class="pre">Send</span> <span class="pre">+</span> <span class="pre">Sync</span></code> 的意思是：<strong>任何实现 <code class="docutils literal notranslate"><span class="pre">Plugin</span></code> 的类型，也必须同时实现 <code class="docutils literal notranslate"><span class="pre">Any</span></code>、<code class="docutils literal notranslate"><span class="pre">Send</span></code> 和 <code class="docutils literal notranslate"><span class="pre">Sync</span></code>。</strong> 冒号后面的这些 trait 叫做 <strong>supertrait</strong>，可以理解为“实现插件接口的前置能力要求”，不是传统面向对象里的字段继承。</p>
+<p>拆开看：</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>约束</p></th>
+<th class="head"><p>含义</p></th>
+<th class="head"><p>为什么插件需要它</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Any</span></code></p></td>
+<td><p>支持运行时类型识别和向下转型</p></td>
+<td><p>插件管理器有时需要把 <code class="docutils literal notranslate"><span class="pre">dyn</span> <span class="pre">Plugin</span></code> 还原成具体插件类型</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="docutils literal notranslate"><span class="pre">Send</span></code></p></td>
+<td><p>值可以安全地移动到另一个线程</p></td>
+<td><p>Tauri/Rust 桌面应用常把任务分发到后台线程</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="docutils literal notranslate"><span class="pre">Sync</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&amp;T</span></code> 可以安全地被多个线程共享</p></td>
+<td><p>插件可能被多个命令、事件或窗口同时读取</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>等价地说，下面这个函数只有在 <code class="docutils literal notranslate"><span class="pre">P</span></code> 同时满足四个 trait 时才接受它：</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span><span class="w"> </span><span class="nf">register_plugin</span><span class="o">&lt;</span><span class="n">P</span><span class="o">&gt;</span><span class="p">(</span><span class="n">plugin</span><span class="p">:</span><span class="w"> </span><span class="nc">P</span><span class="p">)</span>
+<span class="k">where</span>
+<span class="w">    </span><span class="n">P</span><span class="p">:</span><span class="w"> </span><span class="nc">Plugin</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">Any</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">Send</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">Sync</span><span class="p">,</span>
+<span class="p">{</span>
+<span class="w">    </span><span class="c1">// 保存到插件管理器</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>但把约束写在 trait 定义上更集中：<code class="docutils literal notranslate"><span class="pre">PluginManager</span></code> 只要处理 <code class="docutils literal notranslate"><span class="pre">Box&lt;dyn</span> <span class="pre">Plugin&gt;</span></code>，就能默认相信插件具备这些线程安全和类型识别能力。</p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">use</span><span class="w"> </span><span class="n">std</span><span class="p">::</span><span class="n">any</span><span class="p">::</span><span class="n">Any</span><span class="p">;</span>
+
+<span class="k">trait</span><span class="w"> </span><span class="n">RuntimePlugin</span><span class="p">:</span><span class="w"> </span><span class="nc">Any</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">Send</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">Sync</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">name</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="p">;</span>
+
+<span class="w">    </span><span class="c1">// 常见写法：暴露 Any 引用，便于需要时做 downcast</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">as_any</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">dyn</span><span class="w"> </span><span class="n">Any</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="k">struct</span><span class="w"> </span><span class="nc">SpellCheckPlugin</span><span class="p">;</span>
+
+<span class="k">impl</span><span class="w"> </span><span class="n">RuntimePlugin</span><span class="w"> </span><span class="k">for</span><span class="w"> </span><span class="n">SpellCheckPlugin</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">name</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kp">&amp;</span><span class="kt">str</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="s">&quot;spell-check&quot;</span>
+<span class="w">    </span><span class="p">}</span>
+
+<span class="w">    </span><span class="k">fn</span><span class="w"> </span><span class="nf">as_any</span><span class="p">(</span><span class="o">&amp;</span><span class="bp">self</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">dyn</span><span class="w"> </span><span class="n">Any</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="bp">self</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+
+<span class="k">fn</span><span class="w"> </span><span class="nf">try_downcast</span><span class="p">(</span><span class="n">plugin</span><span class="p">:</span><span class="w"> </span><span class="kp">&amp;</span><span class="nc">dyn</span><span class="w"> </span><span class="n">RuntimePlugin</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">plugin</span><span class="p">.</span><span class="n">as_any</span><span class="p">().</span><span class="n">is</span><span class="p">::</span><span class="o">&lt;</span><span class="n">SpellCheckPlugin</span><span class="o">&gt;</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;这是拼写检查插件&quot;</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p>如果某个插件内部用了不能跨线程共享的类型，例如 <code class="docutils literal notranslate"><span class="pre">Rc&lt;RefCell&lt;T&gt;&gt;</span></code>，它就不会满足 <code class="docutils literal notranslate"><span class="pre">Send</span> <span class="pre">+</span> <span class="pre">Sync</span></code>。这不是坏事，而是编译器在提醒你：这个插件不能安全地放进多线程插件系统。通常可以改用 <code class="docutils literal notranslate"><span class="pre">Arc&lt;Mutex&lt;T&gt;&gt;</span></code> 或 <code class="docutils literal notranslate"><span class="pre">Arc&lt;RwLock&lt;T&gt;&gt;</span></code>。</p>
+<pre  class="mermaid">
+        classDiagram
+    class Plugin {
+        &lt;&lt;trait&gt;&gt;
+        +meta() PluginMeta
+        +on_load() Result
+        +on_unload() Result
+        +handle_event(event, payload) Option~String~
+    }
+    class MarkdownPlugin {
+        -meta: PluginMeta
+        -loaded: bool
+        +new() Self
+    }
+    class PluginManager {
+        -plugins: Vec~Box~dyn Plugin~~
+        +register(plugin)
+        +load_all()
+        +broadcast_event(event, payload) Vec~String~
+    }
+
+    Plugin &lt;|.. MarkdownPlugin : impl
+    PluginManager o-- Plugin : manages
+    </pre></section>
+<hr class="docutils" />
+<section id="id18">
+<h2>6.8 本章小结<a class="headerlink" href="#id18" title="Link to this heading">#</a></h2>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>概念</p></th>
+<th class="head"><p>关键点</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Trait</strong></p></td>
+<td><p>定义共享行为，类似 Java interface，但可为外部类型实现</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>方法接收者</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">&amp;self</span></code> 只读借用，<code class="docutils literal notranslate"><span class="pre">&amp;mut</span> <span class="pre">self</span></code> 可变借用，<code class="docutils literal notranslate"><span class="pre">self</span></code> 消费对象</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>泛型 + Trait Bound</strong></p></td>
+<td><p>静态分发，零成本抽象，编译时单态化</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>dyn Trait</strong></p></td>
+<td><p>动态分发，通过 vtable 实现，支持异构集合</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>Supertrait</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">trait</span> <span class="pre">Plugin:</span> <span class="pre">Any</span> <span class="pre">+</span> <span class="pre">Send</span> <span class="pre">+</span> <span class="pre">Sync</span></code> 表示实现者必须同时满足这些约束</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>关联类型</strong></p></td>
+<td><p>一个类型对 trait 只有一种实现时使用</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>对象安全</strong></p></td>
+<td><p>使用 <code class="docutils literal notranslate"><span class="pre">dyn</span> <span class="pre">Trait</span></code> 时，trait 的方法不能有泛型参数或返回 <code class="docutils literal notranslate"><span class="pre">Self</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>标准库 Trait</strong></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Debug</span></code>、<code class="docutils literal notranslate"><span class="pre">Display</span></code>、<code class="docutils literal notranslate"><span class="pre">Clone</span></code>、<code class="docutils literal notranslate"><span class="pre">From</span></code>、<code class="docutils literal notranslate"><span class="pre">Iterator</span></code> 等是 Rust 生态的基石</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id19">
+<h3>思考题<a class="headerlink" href="#id19" title="Link to this heading">#</a></h3>
+<ol class="arabic simple">
+<li><p>为什么 <code class="docutils literal notranslate"><span class="pre">Clone</span></code> trait 不是对象安全的？如果你需要克隆一个 <code class="docutils literal notranslate"><span class="pre">Box&lt;dyn</span> <span class="pre">MyTrait&gt;</span></code>，该怎么设计？</p></li>
+<li><p>在什么场景下你会选择 <code class="docutils literal notranslate"><span class="pre">dyn</span> <span class="pre">Trait</span></code>（动态分发）而不是泛型（静态分发）？</p></li>
+<li><p>尝试为 Hive 项目添加一个 <code class="docutils literal notranslate"><span class="pre">WordCountPlugin</span></code>，统计给定文本的字数。</p></li>
+</ol>
+<hr class="docutils" />
+<blockquote>
+<div><p><strong>下一章预告</strong>：第七章我们将深入 Rust 的错误处理哲学——为什么 Rust 没有异常？<code class="docutils literal notranslate"><span class="pre">Result</span></code> 和 <code class="docutils literal notranslate"><span class="pre">?</span></code> 操作符如何让错误处理既安全又优雅？</p>
+</div></blockquote>
+</section>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="ch05.html"
+       title="上一页">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">上一页</p>
+        <p class="prev-next-title">第五章 结构体、枚举与模块系统</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="ch07.html"
+       title="下一页">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">下一页</p>
+        <p class="prev-next-title">第七章 错误处理的艺术</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> 目录
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#trait">6.1 什么是 Trait？</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id1">6.1.1 定义一个 Trait</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id2">6.1.2 为类型实现 Trait</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#self-mut-self-self">6.1.3 方法接收者：<code class="docutils literal notranslate"><span class="pre">&amp;self</span></code>、<code class="docutils literal notranslate"><span class="pre">&amp;mut</span> <span class="pre">self</span></code> 与 <code class="docutils literal notranslate"><span class="pre">self</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id3">6.1.4 三语对比：定义与实现</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#trait-bound">6.2 Trait Bound 与泛型</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id4">6.2.1 泛型函数</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id5">6.2.2 多个 Trait Bound</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id6">6.2.3 三语对比：泛型约束</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#vs">6.3 静态分发 vs 动态分发</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#impl-trait">6.3.1 静态分发（impl Trait / 泛型）</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#dyn-trait">6.3.2 动态分发（dyn Trait）</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id7">6.3.3 dyn Trait 的内存布局</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id8">6.3.4 三语对比：分发机制</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id9">6.4 常用标准库 Trait</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#display-debug">6.4.1 Display 与 Debug</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#clone-copy">6.4.2 Clone 与 Copy</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#from-into">6.4.3 From 与 Into</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#iterator">6.4.4 Iterator</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id10">6.4.5 常用 Trait 速查表</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id11">6.5 关联类型 vs 泛型参数</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id12">6.5.1 关联类型</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id13">6.5.2 泛型参数</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id14">6.5.3 何时用哪个？</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id15">6.6 Trait 对象的限制：对象安全</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id16">规则</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id17">解决方案</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#hive-trait">6.7 实战：为 Hive 项目设计插件 Trait</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id18">6.8 本章小结</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id19">思考题</a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+作者： Walter Fan
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2026, Walter Fan.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

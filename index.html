@@ -1,0 +1,802 @@
+
+<!DOCTYPE html>
+
+
+<html lang="zh-CN" data-content_root="./" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>新一代客户端架构：用 Tauri + Rust 构建桌面应用 &#8212; Tauri + Rust 客户端架构</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="_static/documentation_options.js?v=327b96ba"></script>
+    <script src="_static/doctools.js?v=9bcbadda"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="_static/copybutton.js?v=f281be69"></script>
+    <script src="_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script src="_static/translations.js?v=beaddf03"></script>
+    <script src="_static/design-tabs.js?v=f930bc37"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'index';</script>
+    <link rel="index" title="索引" href="genindex.html" />
+    <link rel="search" title="搜索" href="search.html" />
+    <link rel="next" title="第一章 客户端架构的前世今生" href="chapters/ch01.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="zh-CN"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">跳转至主要内容</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>回到顶部</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="版本警告"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="#">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">Tauri + Rust 客户端架构</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="搜索" aria-label="搜索" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">搜索</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 0 · 开场</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch01.html">第一章 客户端架构的前世今生</a></li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch02.html">第二章 五分钟跑起第一个 Tauri 应用</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 1 · Rust 速成</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch03.html">第三章 Rust 基础语法速览</a></li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch04.html">第四章 所有权系统：Rust 的灵魂</a></li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch05.html">第五章 结构体、枚举与模块系统</a></li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch06.html">第六章 Trait 与泛型：Rust 的多态</a></li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch07.html">第七章 错误处理的艺术</a></li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch08.html">第八章 异步编程：从线程到 async/await</a></li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch09.html">第九章 Rust 实战小项目：CLI 聊天室</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 2 · Tauri 深度</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch10.html">第十章 Tauri 架构全景</a></li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch11.html">第十一章 前后端通信：IPC 深度解析</a></li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch12.html">第十二章 前端集成：选择你的武器</a></li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch13.html">第十三章 数据持久化：从文件到 SQLite</a></li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch14.html">第十四章 网络与 API 调用</a></li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch15.html">第十五章 实时通信：WebSocket 与群聊</a></li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch16.html">第十六章 原生能力：托盘、通知、快捷键、剪贴板</a></li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch17.html">第十七章 安全加固</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 3 · 高级实践</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch18.html">第十八章 插件开发</a></li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch19.html">第十九章 测试策略</a></li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch20.html">第二十章 性能优化</a></li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch21.html">第二十一章 多平台打包与发布</a></li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch22.html">第二十二章 架构模式与最佳实践</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 4 · 结语与参考</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch23.html">第二十三章 未来展望</a></li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/appendix-a.html">附录 A Rust 速查表</a></li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/appendix-b.html">附录 B Tauri CLI 参考</a></li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/appendix-c.html">附录 C 推荐资源</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+<a href="https://github.com/walterfan/walter-rust-tauri-book" target="_blank"
+   class="btn btn-sm btn-source-repository-button"
+   title="源码库"
+   data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+
+</a>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="下载此页面">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="_sources/index.md" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="下载源文件"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="列印成 PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="全屏模式"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="亮色"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="暗色"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="搜索" aria-label="搜索" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>新一代客户端架构：用 Tauri + Rust 构建桌面应用</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> 目录 </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id1">阅读路线</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id2">本版增强</a><ul class="visible nav section-nav flex-column">
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="tauri-rust">
+<h1>新一代客户端架构：用 Tauri + Rust 构建桌面应用<a class="headerlink" href="#tauri-rust" title="Link to this heading">#</a></h1>
+<p><em>一本写给 C++ / Java 后端工程师的桌面客户端架构实践书：从 Rust 语言基础，到 Tauri 架构、工程化、安全、发布与长期演进。</em></p>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p></p></th>
+<th class="head"><p></p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>作者</strong></p></td>
+<td><p>Walter Fan</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>许可证</strong></p></td>
+<td><p>CC-BY-SA-4.0（正文）· MIT（代码样例）</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>状态</strong></p></td>
+<td><p>0.1.0-draft</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="id1">
+<h2>阅读路线<a class="headerlink" href="#id1" title="Link to this heading">#</a></h2>
+<p>如果你是后端工程师，建议按顺序阅读：先理解客户端架构为什么走到 Tauri，再用 Rust 速成部分建立语言直觉，最后进入 Tauri 的核心能力和工程化章节。</p>
+<p>如果你已经熟悉 Rust，可以跳过第三至九章，直接从第十章开始，把 Hive 项目当成一个小型桌面客户端的架构样板。</p>
+</section>
+<section id="id2">
+<h2>本版增强<a class="headerlink" href="#id2" title="Link to this heading">#</a></h2>
+<p>这一版把草稿从“知识点集合”推进到“可学习、可实践、可复盘”的结构：</p>
+<ul class="simple">
+<li><p>每章开头都有一张 Mermaid 思维导图，先给读者一张“本章地图”。</p></li>
+<li><p>技术讲解尽量回到 Hive 项目的真实设计抉择，而不只是罗列 API。</p></li>
+<li><p>对后端工程师不熟悉的前端框架，尤其 React 与 Vue，补充了必要背景和心智模型。</p></li>
+<li><p>每个主题都尽量回答三个问题：它解决什么问题、代价是什么、在桌面客户端里怎样落地。</p></li>
+</ul>
+<div class="toctree-wrapper compound">
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 0 · 开场</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch01.html">第一章 客户端架构的前世今生</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch01.html#id2">1.1 原生时代：性能为王</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch01.html#web-electron">1.2 Web 入侵：Electron 的崛起</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch01.html#tauri">1.3 Tauri：鱼与熊掌兼得？</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch01.html#id5">1.4 为什么后端工程师也该懂客户端？</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch01.html#id9">1.5 本书的学习路线</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch01.html#id10">1.6 小结</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch02.html">第二章 五分钟跑起第一个 Tauri 应用</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch02.html#id1">2.1 环境准备</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch02.html#id4">2.2 创建第一个 Tauri 项目</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch02.html#id7">2.3 理解核心文件</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch02.html#id8">2.4 运行与调试</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch02.html#id12">2.5 构建发布版本</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch02.html#hive">2.6 动手练习：定制你的 Hive</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch02.html#id18">2.7 常见问题排查</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch02.html#id19">2.8 小结</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 1 · Rust 速成</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch03.html">第三章 Rust 基础语法速览</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch03.html#id1">3.1 变量与可变性</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch03.html#id4">3.2 数据类型</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch03.html#id7">3.3 函数</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch03.html#id10">3.4 控制流</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch03.html#id12">3.5 模式匹配</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch03.html#id15">3.6 字符串</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch03.html#id17">3.7 集合类型速览</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch03.html#id18">3.8 类型转换</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch03.html#id19">3.9 注释与文档</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch03.html#id20">3.10 小结</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch04.html">第四章 所有权系统：Rust 的灵魂</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch04.html#id1">4.1 为什么需要所有权？</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch04.html#id3">4.2 所有权三原则</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch04.html#move-semantics">4.3 移动语义（Move Semantics）</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch04.html#id5">4.4 函数与所有权</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch04.html#borrowing-references">4.5 借用与引用（Borrowing &amp; References）</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch04.html#lifetimes">4.6 生命周期（Lifetimes）</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch04.html#tauri">4.7 实战：所有权在 Tauri 中的体现</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch04.html#id18">4.8 常见所有权错误与解决方案</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch04.html#id21">4.9 小结</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch04.html#id22">扩展阅读</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch05.html">第五章 结构体、枚举与模块系统</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch05.html#struct">5.1 结构体（Struct）</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch05.html#enum">5.2 枚举（Enum）</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch05.html#module-system">5.3 模块系统（Module System）</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch05.html#id10">5.4 综合实战：设计一个配置管理模块</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch05.html#id11">5.5 小结</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch06.html">第六章 Trait 与泛型：Rust 的多态</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch06.html#trait">6.1 什么是 Trait？</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch06.html#trait-bound">6.2 Trait Bound 与泛型</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch06.html#vs">6.3 静态分发 vs 动态分发</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch06.html#id9">6.4 常用标准库 Trait</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch06.html#id11">6.5 关联类型 vs 泛型参数</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch06.html#id15">6.6 Trait 对象的限制：对象安全</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch06.html#hive-trait">6.7 实战：为 Hive 项目设计插件 Trait</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch06.html#id18">6.8 本章小结</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch07.html">第七章 错误处理的艺术</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch07.html#rust">7.1 为什么 Rust 没有异常？</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch07.html#option">7.2 Option：值可能不存在</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch07.html#result">7.3 Result：操作可能失败</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch07.html#id9">7.4 ? 操作符：优雅的错误传播</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch07.html#id13">7.5 自定义错误类型</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch07.html#panic">7.6 panic! 与不可恢复错误</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch07.html#id17">7.7 错误处理模式实战</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch07.html#id19">7.8 三语错误处理全面对比</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch07.html#id20">7.9 本章小结</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch08.html">第八章 异步编程：从线程到 async/await</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch08.html#id1">8.1 线程：并发的起点</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch08.html#send-sync">8.2 Send 与 Sync：线程安全的守门人</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch08.html#mutex-arc">8.3 共享状态：Mutex 与 Arc</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch08.html#channel">8.4 消息传递：Channel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch08.html#async">8.5 从同步到异步：为什么需要 async</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch08.html#id11">8.6 async/await 基础</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch08.html#tokio-rust">8.7 Tokio：Rust 的异步运行时</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch08.html#channel-tokio-sync">8.8 异步 Channel：tokio::sync</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch08.html#http">8.9 实战：异步 HTTP 客户端</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch08.html#id18">8.10 异步编程的陷阱</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch08.html#tauri">8.11 Tauri 中的异步</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch08.html#id22">8.12 本章小结</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch09.html">第九章 Rust 实战小项目：CLI 聊天室</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch09.html#id1">9.1 项目规划</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch09.html#id6">9.2 消息协议</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch09.html#id7">9.3 聊天服务器</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch09.html#id8">9.4 聊天客户端</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch09.html#id9">9.5 主入口</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch09.html#id10">9.6 运行与测试</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch09.html#id14">9.7 架构回顾</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch09.html#id16">9.8 知识点总结与映射</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch09.html#id17">9.9 扩展挑战</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch09.html#id21">9.10 本章小结</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 2 · Tauri 深度</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch10.html">第十章 Tauri 架构全景</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch10.html#tauri-electron">10.1 Tauri 与 Electron：架构对比</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch10.html#id2">10.2 Tauri 的双进程模型</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch10.html#ipc">10.3 IPC 通信机制概览</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch10.html#id5">10.4 Tauri 的安全模型</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch10.html#id7">10.5 Tauri 应用的生命周期</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch10.html#id9">10.6 Tauri 项目结构深度解析</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch10.html#c-java-tauri">10.7 从 C++/Java 架构师视角看 Tauri</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch10.html#hive">10.8 Hive 项目架构设计</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch10.html#id10">10.9 小结</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch11.html">第十一章 前后端通信：IPC 深度解析</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch11.html#command">11.1 Command 系统详解</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch11.html#id3">11.2 参数传递</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch11.html#id7">11.3 返回值与错误处理</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch11.html#tauri">11.4 访问 Tauri 内置对象</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch11.html#id8">11.5 异步命令</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch11.html#event">11.6 Event 系统详解</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch11.html#channel">11.7 Channel：高性能流式传输</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch11.html#id14">11.8 二进制数据传输</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch11.html#id17">11.9 命令组织与模块化</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch11.html#id21">11.10 IPC 性能优化</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch11.html#id24">11.11 调试 IPC 通信</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch11.html#hive-ipc">11.12 实战：Hive 笔记模块 IPC 设计</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch11.html#id26">11.13 小结</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch12.html">第十二章 前端集成：选择你的武器</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch12.html#tauri">12.1 Tauri 前端的共同约束</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch12.html#vanilla">12.2 Vanilla：最小依赖路线</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch12.html#react">12.3 React：生态与工程化优先</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch12.html#vue">12.4 Vue：渐进式与团队可读性</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch12.html#svelte">12.5 Svelte：轻量与编译期优化</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch12.html#hive-vue-typescript-vite">12.6 Hive 的选择：Vue + TypeScript + Vite</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch12.html#csp">12.7 路由、资源与 CSP</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch12.html#id4">12.8 小结</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch13.html">第十三章 数据持久化：从文件到 SQLite</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch13.html#id1">13.1 本地优先的分层模型</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch13.html#id2">13.2 文件存储适合什么</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch13.html#id3">13.3 SQLite 的位置</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch13.html#sqlx">13.4 使用 sqlx 建模</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch13.html#migration">13.5 Migration：让数据结构可演进</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch13.html#hive">13.6 Hive 的数据模型</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch13.html#id4">13.7 小结</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch14.html">第十四章 网络与 API 调用</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch14.html#id1">14.1 网络调用应该放在哪里</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch14.html#reqwest">14.2 reqwest 客户端封装</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch14.html#id2">14.3 错误分类</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch14.html#id3">14.4 离线队列</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch14.html#token">14.5 Token 与本地凭据</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch14.html#id4">14.6 前端反馈</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch14.html#id5">14.7 小结</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch15.html">第十五章 实时通信：WebSocket 与群聊</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch15.html#id1">15.1 WebSocket 的角色</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch15.html#id2">15.2 消息协议</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch15.html#tokio-tungstenite">15.3 tokio-tungstenite 客户端</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch15.html#id3">15.4 连接监督与重连</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch15.html#id4">15.5 群聊的数据流</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch15.html#id5">15.6 背压与限流</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch15.html#id6">15.7 小结</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch16.html">第十六章 原生能力：托盘、通知、快捷键、剪贴板</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch16.html#id2">16.1 原生能力的安全边界</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch16.html#id3">16.2 系统托盘</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch16.html#id4">16.3 桌面通知</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch16.html#id5">16.4 全局快捷键</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch16.html#id6">16.5 剪贴板</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch16.html#id7">16.6 小结</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch17.html">第十七章 安全加固</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch17.html#id2">17.1 威胁模型</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch17.html#csp">17.2 CSP：限制前端能加载什么</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch17.html#capabilities">17.3 Capabilities：声明最小权限</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch17.html#ipc">17.4 IPC 输入校验</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch17.html#id3">17.5 依赖与供应链</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch17.html#id4">17.6 代码签名与自动更新</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch17.html#id5">17.7 小结</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 3 · 高级实践</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch18.html">第十八章 插件开发</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch18.html#id2">18.1 什么时候需要插件</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch18.html#id3">18.2 插件结构</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch18.html#rust">18.3 Rust 插件入口</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch18.html#api">18.4 前端 API</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch18.html#id4">18.5 权限与配置</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch18.html#id5">18.6 测试插件</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch18.html#id6">18.7 小结</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch19.html">第十九章 测试策略</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch19.html#id2">19.1 测试金字塔</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch19.html#rust">19.2 Rust 单元测试</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch19.html#id3">19.3 数据库集成测试</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch19.html#id4">19.4 前端组件测试</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch19.html#ipc">19.5 IPC 契约测试</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch19.html#e2e">19.6 E2E 测试</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch19.html#ci">19.7 CI 集成</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch19.html#id5">19.8 小结</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch20.html">第二十章 性能优化</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch20.html#id2">20.1 先测量，再优化</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch20.html#id3">20.2 启动性能</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch20.html#ipc">20.3 IPC 性能</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch20.html#id4">20.4 数据库性能</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch20.html#id5">20.5 前端渲染性能</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch20.html#rust-profiling">20.6 Rust profiling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch20.html#id6">20.7 小结</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch21.html">第二十一章 多平台打包与发布</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch21.html#id2">21.1 发布流水线</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch21.html#tauri-conf-json">21.2 tauri.conf.json 的发布项</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch21.html#github-actions">21.3 GitHub Actions 示例</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch21.html#id3">21.4 平台差异</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch21.html#id4">21.5 自动更新</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch21.html#id5">21.6 发布前检查</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch21.html#id6">21.7 小结</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch22.html">第二十二章 架构模式与最佳实践</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch22.html#id2">22.1 分层架构</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch22.html#id3">22.2 状态管理模式</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch22.html#id4">22.3 错误边界</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch22.html#id5">22.4 日志与可观测性</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch22.html#id6">22.5 配置与特性开关</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch22.html#id7">22.6 代码组织约定</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch22.html#id8">22.7 小结</a></li>
+</ul>
+</li>
+</ul>
+</div>
+<div class="toctree-wrapper compound">
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 4 · 结语与参考</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="chapters/ch23.html">第二十三章 未来展望</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch23.html#tauri-2-0">23.1 Tauri 2.0 与移动端</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch23.html#wasm">23.2 WASM 与客户端扩展</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch23.html#ai">23.3 AI 集成</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch23.html#rust-gui">23.4 Rust GUI 生态</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch23.html#id2">23.5 给后端工程师的最后建议</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/ch23.html#id3">23.6 小结</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/appendix-a.html">附录 A Rust 速查表</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chapters/appendix-a.html#id1">基础语法</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/appendix-a.html#id2">所有权与借用</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/appendix-a.html#option-result">Option 与 Result</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/appendix-a.html#struct-enum-match">struct / enum / match</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/appendix-a.html#trait">Trait 与泛型</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/appendix-a.html#async-await">async / await</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/appendix-a.html#crate">常用 crate</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/appendix-b.html">附录 B Tauri CLI 参考</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chapters/appendix-b.html#id1">创建项目</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/appendix-b.html#id2">开发运行</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/appendix-b.html#id3">构建发布包</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/appendix-b.html#id4">添加插件</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/appendix-b.html#id5">常用目录</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/appendix-b.html#id6">排错命令</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="chapters/appendix-c.html">附录 C 推荐资源</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="chapters/appendix-c.html#id1">官方文档</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/appendix-c.html#rust">Rust 工程实践</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/appendix-c.html#id2">前端与桌面应用</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/appendix-c.html#id3">安全与发布</a></li>
+<li class="toctree-l2"><a class="reference internal" href="chapters/appendix-c.html#id4">建议阅读方式</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="right-next"
+       href="chapters/ch01.html"
+       title="下一页">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">下一页</p>
+        <p class="prev-next-title">第一章 客户端架构的前世今生</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> 目录
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id1">阅读路线</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id2">本版增强</a><ul class="visible nav section-nav flex-column">
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+作者： Walter Fan
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2026, Walter Fan.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

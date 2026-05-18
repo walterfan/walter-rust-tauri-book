@@ -1,0 +1,1655 @@
+
+<!DOCTYPE html>
+
+
+<html lang="zh-CN" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>第十章 Tauri 架构全景 &#8212; Tauri + Rust 客户端架构</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../_static/copybutton.css?v=76b2166b" />
+    <link rel="stylesheet" type="text/css" href="../_static/sphinx-design.min.css?v=95c83b7e" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../_static/documentation_options.js?v=327b96ba"></script>
+    <script src="../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/clipboard.min.js?v=a7894cd8"></script>
+    <script src="../_static/copybutton.js?v=f281be69"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script src="../_static/translations.js?v=beaddf03"></script>
+    <script src="../_static/design-tabs.js?v=f930bc37"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.esm.min.mjs"></script>
+    <script type="module" src="https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.2.0/dist/mermaid-layout-elk.esm.min.mjs"></script>
+    <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.esm.min.mjs";import elkLayouts from "https://cdn.jsdelivr.net/npm/@mermaid-js/layout-elk@0.2.0/dist/mermaid-layout-elk.esm.min.mjs";mermaid.registerLayoutLoaders(elkLayouts);mermaid.initialize({startOnLoad:false});</script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+    <script type="module">import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.esm.min.mjs";
+
+const defaultStyle = document.createElement('style');
+defaultStyle.textContent = `pre.mermaid {
+    /* Same as .mermaid-container > pre */
+    display: block;
+    width: 100%;
+}
+
+pre.mermaid > svg {
+    /* Same as .mermaid-container > pre > svg */
+    height: 500px;
+    width: 100%;
+    max-width: 100% !important;
+}
+`;
+document.head.appendChild(defaultStyle);
+
+const fullscreenStyle = document.createElement('style');
+fullscreenStyle.textContent = `.mermaid-container {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+}
+
+.mermaid-container > pre {
+    display: block;
+    width: 100%;
+}
+
+.mermaid-container > pre > svg {
+    height: 500px;
+    width: 100%;
+    max-width: 100% !important;
+}
+
+.mermaid-fullscreen-btn {
+    width: 28px;
+    height: 28px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.3);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+    font-size: 14px;
+    line-height: 1;
+    padding: 0;
+    color: #333;
+}
+
+.mermaid-fullscreen-btn:hover {
+    opacity: 100% !important;
+    background: rgba(255, 255, 255, 1);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+    transform: scale(1.1);
+}
+
+.mermaid-fullscreen-btn.dark-theme {
+    background: rgba(50, 50, 50, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: #e0e0e0;
+}
+
+.mermaid-fullscreen-btn.dark-theme:hover {
+    background: rgba(60, 60, 60, 1);
+    box-shadow: 0 3px 10px rgba(255, 255, 255, 0.2);
+}
+
+.mermaid-fullscreen-modal {
+    display: none;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 95vw;
+    height: 100vh;
+    background: rgba(255, 255, 255, 0.98);
+    z-index: 9999;
+    padding: 20px;
+    overflow: auto;
+}
+
+.mermaid-fullscreen-modal.dark-theme {
+    background: rgba(0, 0, 0, 0.98);
+}
+
+.mermaid-fullscreen-modal.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen {
+    position: relative;
+    width: 95vw;
+    height: 90vh;
+    max-width: 95vw;
+    max-height: 90vh;
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    overflow: auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen.dark-theme {
+    background: #1a1a1a;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+}
+
+.mermaid-container-fullscreen pre.mermaid {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mermaid-container-fullscreen .mermaid svg {
+    height: 100% !important;
+    width: 100% !important;
+    cursor: grab;
+}
+
+.mermaid-fullscreen-close {
+    position: fixed !important;
+    top: 20px !important;
+    right: 20px !important;
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 50%;
+    cursor: pointer;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    transition: all 0.2s;
+    font-size: 24px;
+    line-height: 1;
+    color: #333;
+}
+
+.mermaid-fullscreen-close:hover {
+    background: white;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+    transform: scale(1.1);
+}
+
+.mermaid-fullscreen-close.dark-theme {
+    background: rgba(50, 50, 50, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #e0e0e0;
+}
+
+.mermaid-fullscreen-close.dark-theme:hover {
+    background: rgba(60, 60, 60, 1);
+    box-shadow: 0 6px 16px rgba(255, 255, 255, 0.2);
+}
+
+.mermaid-fullscreen-modal .mermaid-fullscreen-btn {
+    display: none !important;
+}`;
+document.head.appendChild(fullscreenStyle);
+
+// Detect if page has dark background
+const isDarkTheme = () => {
+    const bgColor = window.getComputedStyle(document.body).backgroundColor;
+    const match = bgColor.match(/rgb\((\d+),\s*(\d+),\s*(\d+)/);
+    if (match) {
+        const r = parseInt(match[1]);
+        const g = parseInt(match[2]);
+        const b = parseInt(match[3]);
+        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+        return brightness < 128;
+    }
+    return false;
+};
+
+const load = async () => {
+    await mermaid.run();
+
+    const all_mermaids = document.querySelectorAll(".mermaid");
+    const mermaids_processed = document.querySelectorAll(".mermaid[data-processed='true']");
+
+    if ("False" === "True") {
+        const mermaids_to_add_zoom = -1 === -1 ? all_mermaids.length : -1;
+        if(mermaids_to_add_zoom > 0) {
+            var svgs = d3.selectAll("");
+            if(all_mermaids.length !== mermaids_processed.length) {
+                setTimeout(load, 200);
+                return;
+            } else if(svgs.size() !== mermaids_to_add_zoom) {
+                setTimeout(load, 200);
+                return;
+            } else {
+                svgs.each(function() {
+                    var svg = d3.select(this);
+                    svg.html("<g class='wrapper'>" + svg.html() + "</g>");
+                    var inner = svg.select("g");
+                    var zoom = d3.zoom().on("zoom", function(event) {
+                        inner.attr("transform", event.transform);
+                    });
+                    svg.call(zoom);
+                });
+            }
+        }
+    } else if(all_mermaids.length !== mermaids_processed.length) {
+        // Wait for mermaid to process all diagrams
+        setTimeout(load, 200);
+        return;
+    }
+
+    const darkTheme = isDarkTheme();
+
+    // Stop here if not adding fullscreen capability
+    if ("True" !== "True") return;
+
+    const modal = document.createElement('div');
+    modal.className = 'mermaid-fullscreen-modal' + (darkTheme ? ' dark-theme' : '');
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', 'Fullscreen diagram viewer');
+    modal.innerHTML = `
+        <button class="mermaid-fullscreen-close${darkTheme ? ' dark-theme' : ''}" aria-label="Close fullscreen">✕</button>
+        <div class="mermaid-container-fullscreen${darkTheme ? ' dark-theme' : ''}"></div>
+    `;
+    document.body.appendChild(modal);
+
+    const modalContent = modal.querySelector('.mermaid-container-fullscreen');
+    const closeBtn = modal.querySelector('.mermaid-fullscreen-close');
+
+    let previousScrollOffset = [window.scrollX, window.scrollY];
+
+    const closeModal = () => {
+        modal.classList.remove('active');
+        modalContent.innerHTML = '';
+        document.body.style.overflow = ''
+        window.scrollTo({left: previousScrollOffset[0], top: previousScrollOffset[1], behavior: 'instant'});
+    };
+
+    closeBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) closeModal();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('active')) {
+            closeModal();
+        }
+    });
+
+    const allButtons = [];
+
+    document.querySelectorAll('.mermaid').forEach((mermaidDiv) => {
+        if (mermaidDiv.parentNode.classList.contains('mermaid-container') ||
+            mermaidDiv.closest('.mermaid-fullscreen-modal')) {
+            return;
+        }
+
+        const container = document.createElement('div');
+        container.className = 'mermaid-container';
+        mermaidDiv.parentNode.insertBefore(container, mermaidDiv);
+        container.appendChild(mermaidDiv);
+
+        const fullscreenBtn = document.createElement('button');
+        fullscreenBtn.className = 'mermaid-fullscreen-btn' + (darkTheme ? ' dark-theme' : '');
+        fullscreenBtn.setAttribute('aria-label', 'View diagram in fullscreen');
+        fullscreenBtn.textContent = '⛶';
+        fullscreenBtn.style.opacity = '50%';
+
+        // Calculate dynamic position based on diagram's margin and padding
+        const diagramStyle = window.getComputedStyle(mermaidDiv);
+        const marginTop = parseFloat(diagramStyle.marginTop) || 0;
+        const marginRight = parseFloat(diagramStyle.marginRight) || 0;
+        const paddingTop = parseFloat(diagramStyle.paddingTop) || 0;
+        const paddingRight = parseFloat(diagramStyle.paddingRight) || 0;
+        fullscreenBtn.style.top = `${marginTop + paddingTop + 4}px`;
+        fullscreenBtn.style.right = `${marginRight + paddingRight + 4}px`;
+
+        fullscreenBtn.addEventListener('click', () => {
+            previousScrollOffset = [window.scroll, window.scrollY];
+            const clone = mermaidDiv.cloneNode(true);
+            modalContent.innerHTML = '';
+            modalContent.appendChild(clone);
+
+            const svg = clone.querySelector('svg');
+            if (svg) {
+                svg.removeAttribute('width');
+                svg.removeAttribute('height');
+                svg.style.width = '100%';
+                svg.style.height = 'auto';
+                svg.style.maxWidth = '100%';
+                svg.style.sdisplay = 'block';
+
+                if ("False" === "True") {
+                    setTimeout(() => {
+                        const g = svg.querySelector('g');
+                        if (g) {
+                            var svgD3 = d3.select(svg);
+                            svgD3.html("<g class='wrapper'>" + svgD3.html() + "</g>");
+                            var inner = svgD3.select("g");
+                            var zoom = d3.zoom().on("zoom", function(event) {
+                                inner.attr("transform", event.transform);
+                            });
+                            svgD3.call(zoom);
+                        }
+                    }, 100);
+                }
+            }
+
+            modal.classList.add('active');
+            document.body.style.overflow = 'hidden';
+        });
+
+        container.appendChild(fullscreenBtn);
+        allButtons.push(fullscreenBtn);
+    });
+
+    // Update theme classes when theme changes
+    const updateTheme = () => {
+        const dark = isDarkTheme();
+        allButtons.forEach(btn => {
+            if (dark) {
+                btn.classList.add('dark-theme');
+            } else {
+                btn.classList.remove('dark-theme');
+            }
+        });
+        if (dark) {
+            modal.classList.add('dark-theme');
+            modalContent.classList.add('dark-theme');
+            closeBtn.classList.add('dark-theme');
+        } else {
+            modal.classList.remove('dark-theme');
+            modalContent.classList.remove('dark-theme');
+            closeBtn.classList.remove('dark-theme');
+        }
+    };
+
+    // Watch for theme changes
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class', 'style', 'data-theme']
+    });
+    observer.observe(document.body, {
+        attributes: true,
+        attributeFilter: ['class', 'style']
+    });
+};
+
+window.addEventListener("load", load);
+</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'chapters/ch10';</script>
+    <link rel="index" title="索引" href="../genindex.html" />
+    <link rel="search" title="搜索" href="../search.html" />
+    <link rel="next" title="第十一章 前后端通信：IPC 深度解析" href="ch11.html" />
+    <link rel="prev" title="第九章 Rust 实战小项目：CLI 聊天室" href="ch09.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="zh-CN"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">跳转至主要内容</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>回到顶部</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="版本警告"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+  
+    <p class="title logo__title">Tauri + Rust 客户端架构</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="搜索" aria-label="搜索" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">搜索</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 0 · 开场</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="ch01.html">第一章 客户端架构的前世今生</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch02.html">第二章 五分钟跑起第一个 Tauri 应用</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 1 · Rust 速成</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="ch03.html">第三章 Rust 基础语法速览</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch04.html">第四章 所有权系统：Rust 的灵魂</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch05.html">第五章 结构体、枚举与模块系统</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch06.html">第六章 Trait 与泛型：Rust 的多态</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch07.html">第七章 错误处理的艺术</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch08.html">第八章 异步编程：从线程到 async/await</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch09.html">第九章 Rust 实战小项目：CLI 聊天室</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 2 · Tauri 深度</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">第十章 Tauri 架构全景</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch11.html">第十一章 前后端通信：IPC 深度解析</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch12.html">第十二章 前端集成：选择你的武器</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch13.html">第十三章 数据持久化：从文件到 SQLite</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch14.html">第十四章 网络与 API 调用</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch15.html">第十五章 实时通信：WebSocket 与群聊</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch16.html">第十六章 原生能力：托盘、通知、快捷键、剪贴板</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch17.html">第十七章 安全加固</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 3 · 高级实践</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="ch18.html">第十八章 插件开发</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch19.html">第十九章 测试策略</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch20.html">第二十章 性能优化</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch21.html">第二十一章 多平台打包与发布</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ch22.html">第二十二章 架构模式与最佳实践</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Part 4 · 结语与参考</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="ch23.html">第二十三章 未来展望</a></li>
+<li class="toctree-l1"><a class="reference internal" href="appendix-a.html">附录 A Rust 速查表</a></li>
+<li class="toctree-l1"><a class="reference internal" href="appendix-b.html">附录 B Tauri CLI 参考</a></li>
+<li class="toctree-l1"><a class="reference internal" href="appendix-c.html">附录 C 推荐资源</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+<a href="https://github.com/walterfan/walter-rust-tauri-book" target="_blank"
+   class="btn btn-sm btn-source-repository-button"
+   title="源码库"
+   data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+
+</a>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="下载此页面">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/chapters/ch10.md" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="下载源文件"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="列印成 PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="全屏模式"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="亮色"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="暗色"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="搜索" aria-label="搜索" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>第十章 Tauri 架构全景</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> 目录 </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tauri-electron">10.1 Tauri 与 Electron：架构对比</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id1">关键差异</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id2">10.2 Tauri 的双进程模型</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#core-process">10.2.1 Core Process（核心进程）</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#webview-process-webview">10.2.2 WebView Process（WebView 进程）</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id3">10.2.3 为什么是双进程？</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ipc">10.3 IPC 通信机制概览</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#command">10.3.1 Command 模式（请求-响应）</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#event">10.3.2 Event 模式（发布-订阅）</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id4">10.3.3 两种模式对比</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id5">10.4 Tauri 的安全模型</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#capabilities">10.4.1 能力系统（Capabilities）</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id6">10.4.2 安全层次</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#electron">10.4.3 与 Electron 安全对比</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id7">10.5 Tauri 应用的生命周期</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id8">生命周期钩子</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id9">10.6 Tauri 项目结构深度解析</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tauri-conf-json">tauri.conf.json 核心配置</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#c-java-tauri">10.7 从 C++/Java 架构师视角看 Tauri</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#c-qt">与 C++ Qt 对比</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#java-swing-javafx">与 Java Swing/JavaFX 对比</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#hive">10.8 Hive 项目架构设计</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id10">10.9 小结</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id11">核心知识点</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id12">Tauri 设计哲学</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id13">下一章预告</a></li>
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="tauri">
+<h1>第十章 Tauri 架构全景<a class="headerlink" href="#tauri" title="Link to this heading">#</a></h1>
+<blockquote>
+<div><p><em>&quot;要驾驭一个框架，先要看透它的骨架。&quot;</em></p>
+</div></blockquote>
+<p>经过 Part 1 的 Rust 速成，你已经具备了阅读和编写 Rust 代码的能力。从本章开始，我们正式进入 Tauri 的世界。本章将从宏观视角剖析 Tauri 的架构设计，理解它为什么能做到&quot;小而安全&quot;。</p>
+<pre  class="mermaid">
+        mindmap
+  root((Tauri 架构全景))
+    双进程
+      Core Process
+      WebView Process
+      IPC Bridge
+    与 Electron 对比
+      不内嵌 Chromium
+      Rust 替代 Node
+      更小攻击面
+    安全模型
+      最小权限
+      capabilities
+      CSP
+    Hive 基础
+      命令
+      事件
+      状态
+    </pre><hr class="docutils" />
+<section id="tauri-electron">
+<h2>10.1 Tauri 与 Electron：架构对比<a class="headerlink" href="#tauri-electron" title="Link to this heading">#</a></h2>
+<p>在深入 Tauri 之前，我们先对比它与 Electron 的架构差异：</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>┌─────────────────────────────────────────────────────┐
+│                    Electron                          │
+│                                                     │
+│  ┌─────────────┐    ┌─────────────────────────────┐ │
+│  │ Main Process│    │    Renderer Process          │ │
+│  │  (Node.js)  │◄──►│  (Chromium 完整内核)         │ │
+│  │             │IPC │  HTML / CSS / JS             │ │
+│  └─────────────┘    └─────────────────────────────┘ │
+│                                                     │
+│  打包体积：~150 MB+（含完整 Chromium + Node.js）      │
+│  内存占用：~100-300 MB                               │
+└─────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────┐
+│                     Tauri                            │
+│                                                     │
+│  ┌─────────────┐    ┌─────────────────────────────┐ │
+│  │ Core Process│    │    WebView Process           │ │
+│  │   (Rust)    │◄──►│  (系统原生 WebView)           │ │
+│  │             │IPC │  HTML / CSS / JS             │ │
+│  └─────────────┘    └─────────────────────────────┘ │
+│                                                     │
+│  打包体积：~3-10 MB（复用系统 WebView）               │
+│  内存占用：~30-80 MB                                 │
+└─────────────────────────────────────────────────────┘
+</pre></div>
+</div>
+<section id="id1">
+<h3>关键差异<a class="headerlink" href="#id1" title="Link to this heading">#</a></h3>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>维度</p></th>
+<th class="head"><p>Electron</p></th>
+<th class="head"><p>Tauri</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>后端语言</p></td>
+<td><p>JavaScript (Node.js)</p></td>
+<td><p>Rust</p></td>
+</tr>
+<tr class="row-odd"><td><p>渲染引擎</p></td>
+<td><p>自带 Chromium</p></td>
+<td><p>系统 WebView (WebKit/WebView2/WebKitGTK)</p></td>
+</tr>
+<tr class="row-even"><td><p>打包体积</p></td>
+<td><p>150 MB+</p></td>
+<td><p>3-10 MB</p></td>
+</tr>
+<tr class="row-odd"><td><p>内存占用</p></td>
+<td><p>100-300 MB</p></td>
+<td><p>30-80 MB</p></td>
+</tr>
+<tr class="row-even"><td><p>安全模型</p></td>
+<td><p>Node.js 拥有完整系统权限</p></td>
+<td><p>最小权限 + 能力声明</p></td>
+</tr>
+<tr class="row-odd"><td><p>跨平台 WebView</p></td>
+<td><p>一致（Chromium）</p></td>
+<td><p>不同平台不同引擎</p></td>
+</tr>
+<tr class="row-even"><td><p>生态成熟度</p></td>
+<td><p>非常成熟</p></td>
+<td><p>快速成长中</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id2">
+<h2>10.2 Tauri 的双进程模型<a class="headerlink" href="#id2" title="Link to this heading">#</a></h2>
+<p>Tauri 应用由两个核心进程组成：</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>┌──────────────────────────────────────────────────────────┐
+│                    Tauri 应用                              │
+│                                                          │
+│  ┌────────────────────────┐  IPC Bridge  ┌─────────────┐ │
+│  │     Core Process       │◄────────────►│  WebView     │ │
+│  │     (Rust 后端)         │              │  (前端 UI)   │ │
+│  │                        │   invoke()   │             │ │
+│  │  • 业务逻辑            │◄─────────────│  • HTML     │ │
+│  │  • 文件系统访问         │              │  • CSS      │ │
+│  │  • 数据库操作           │   emit()     │  • JS/TS    │ │
+│  │  • 网络请求            │─────────────►│  • React    │ │
+│  │  • 系统 API            │              │  • Vue      │ │
+│  │  • 插件管理            │   listen()   │  • Svelte   │ │
+│  │  • 安全策略            │◄─────────────│             │ │
+│  └────────────────────────┘              └─────────────┘ │
+│                                                          │
+│  macOS: WKWebView    Windows: WebView2    Linux: WebKitGTK│
+└──────────────────────────────────────────────────────────┘
+</pre></div>
+</div>
+<section id="core-process">
+<h3>10.2.1 Core Process（核心进程）<a class="headerlink" href="#core-process" title="Link to this heading">#</a></h3>
+<p>Core Process 是用 Rust 编写的后端进程，负责：</p>
+<ol class="arabic simple">
+<li><p><strong>应用生命周期管理</strong> — 启动、运行、退出</p></li>
+<li><p><strong>窗口管理</strong> — 创建、关闭、调整窗口</p></li>
+<li><p><strong>系统 API 访问</strong> — 文件、网络、托盘、通知等</p></li>
+<li><p><strong>IPC 处理</strong> — 接收前端请求，返回结果</p></li>
+<li><p><strong>安全策略执行</strong> — 权限检查、CSP 策略</p></li>
+</ol>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="c1">// src-tauri/src/main.rs — Core Process 入口</span>
+<span class="k">fn</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">tauri</span><span class="p">::</span><span class="n">Builder</span><span class="p">::</span><span class="n">default</span><span class="p">()</span>
+<span class="w">        </span><span class="c1">// 注册插件</span>
+<span class="w">        </span><span class="p">.</span><span class="n">plugin</span><span class="p">(</span><span class="n">tauri_plugin_shell</span><span class="p">::</span><span class="n">init</span><span class="p">())</span>
+<span class="w">        </span><span class="p">.</span><span class="n">plugin</span><span class="p">(</span><span class="n">tauri_plugin_fs</span><span class="p">::</span><span class="n">init</span><span class="p">())</span>
+<span class="w">        </span><span class="c1">// 注册命令（供前端 invoke 调用）</span>
+<span class="w">        </span><span class="p">.</span><span class="n">invoke_handler</span><span class="p">(</span><span class="n">tauri</span><span class="p">::</span><span class="n">generate_handler</span><span class="o">!</span><span class="p">[</span>
+<span class="w">            </span><span class="n">greet</span><span class="p">,</span>
+<span class="w">            </span><span class="n">read_config</span><span class="p">,</span>
+<span class="w">            </span><span class="n">save_note</span><span class="p">,</span>
+<span class="w">        </span><span class="p">])</span>
+<span class="w">        </span><span class="c1">// 管理全局状态</span>
+<span class="w">        </span><span class="p">.</span><span class="n">manage</span><span class="p">(</span><span class="n">AppState</span><span class="p">::</span><span class="n">default</span><span class="p">())</span>
+<span class="w">        </span><span class="c1">// 配置窗口创建回调</span>
+<span class="w">        </span><span class="p">.</span><span class="n">setup</span><span class="p">(</span><span class="o">|</span><span class="n">app</span><span class="o">|</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;Hive 应用启动！&quot;</span><span class="p">);</span>
+<span class="w">            </span><span class="nb">Ok</span><span class="p">(())</span>
+<span class="w">        </span><span class="p">})</span>
+<span class="w">        </span><span class="p">.</span><span class="n">run</span><span class="p">(</span><span class="n">tauri</span><span class="p">::</span><span class="n">generate_context</span><span class="o">!</span><span class="p">())</span>
+<span class="w">        </span><span class="p">.</span><span class="n">expect</span><span class="p">(</span><span class="s">&quot;error while running tauri application&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="webview-process-webview">
+<h3>10.2.2 WebView Process（WebView 进程）<a class="headerlink" href="#webview-process-webview" title="Link to this heading">#</a></h3>
+<p>WebView Process 负责渲染用户界面：</p>
+<ul class="simple">
+<li><p><strong>macOS</strong> — 使用 WKWebView（Safari 内核）</p></li>
+<li><p><strong>Windows</strong> — 使用 WebView2（Edge/Chromium 内核）</p></li>
+<li><p><strong>Linux</strong> — 使用 WebKitGTK</p></li>
+</ul>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="c1">// src/main.js — 前端入口</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">invoke</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;@tauri-apps/api/core&#39;</span><span class="p">;</span>
+<span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">listen</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;@tauri-apps/api/event&#39;</span><span class="p">;</span>
+
+<span class="c1">// 调用 Rust 后端命令</span>
+<span class="kd">const</span><span class="w"> </span><span class="nx">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">invoke</span><span class="p">(</span><span class="s1">&#39;greet&#39;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">name</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;Walter&#39;</span><span class="w"> </span><span class="p">});</span>
+<span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">result</span><span class="p">);</span><span class="w"> </span><span class="c1">// &quot;Hello, Walter!&quot;</span>
+
+<span class="c1">// 监听后端事件</span>
+<span class="k">await</span><span class="w"> </span><span class="nx">listen</span><span class="p">(</span><span class="s1">&#39;file-changed&#39;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">event</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">&#39;文件变更：&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">event</span><span class="p">.</span><span class="nx">payload</span><span class="p">);</span>
+<span class="p">});</span>
+</pre></div>
+</div>
+</section>
+<section id="id3">
+<h3>10.2.3 为什么是双进程？<a class="headerlink" href="#id3" title="Link to this heading">#</a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>┌─────────────────────────────────────────────┐
+│              安全边界（Sandbox）               │
+│                                             │
+│  WebView 进程                Core 进程       │
+│  ┌───────────┐              ┌───────────┐   │
+│  │ 只能渲染   │   IPC 桥     │ 可访问     │   │
+│  │ HTML/CSS  │◄────────────►│ 系统资源   │   │
+│  │ /JS       │  权限检查     │ 文件/网络  │   │
+│  │           │              │ 数据库     │   │
+│  │ 无法直接   │              │           │   │
+│  │ 访问文件系统│              │ 按需授权   │   │
+│  └───────────┘              └───────────┘   │
+└─────────────────────────────────────────────┘
+</pre></div>
+</div>
+<p><strong>核心原则：最小权限（Principle of Least Privilege）</strong></p>
+<ul class="simple">
+<li><p>WebView 默认没有任何系统权限</p></li>
+<li><p>每个能力都需要显式声明</p></li>
+<li><p>Core Process 作为&quot;守门人&quot;验证每个请求</p></li>
+</ul>
+</section>
+</section>
+<hr class="docutils" />
+<section id="ipc">
+<h2>10.3 IPC 通信机制概览<a class="headerlink" href="#ipc" title="Link to this heading">#</a></h2>
+<p>Tauri 提供两种 IPC 通信模式：</p>
+<section id="command">
+<h3>10.3.1 Command 模式（请求-响应）<a class="headerlink" href="#command" title="Link to this heading">#</a></h3>
+<p>前端通过 <code class="docutils literal notranslate"><span class="pre">invoke()</span></code> 调用 Rust 命令，等待返回结果：</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>前端 (JS)                          后端 (Rust)
+   │                                   │
+   │  invoke(&#39;save_note&#39;, {content})   │
+   │──────────────────────────────────►│
+   │                                   │  fn save_note(content)
+   │                                   │  → 写入文件
+   │                                   │  → 返回 Result
+   │       Ok(&quot;saved&quot;) / Err(...)      │
+   │◄──────────────────────────────────│
+   │                                   │
+</pre></div>
+</div>
+<p><strong>Rust 端：</strong></p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="cp">#[tauri::command]</span>
+<span class="k">async</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">save_note</span><span class="p">(</span><span class="n">content</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="nb">String</span><span class="p">,</span><span class="w"> </span><span class="nb">String</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">std</span><span class="p">::</span><span class="n">fs</span><span class="p">::</span><span class="n">write</span><span class="p">(</span><span class="s">&quot;note.md&quot;</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">content</span><span class="p">)</span>
+<span class="w">        </span><span class="p">.</span><span class="n">map_err</span><span class="p">(</span><span class="o">|</span><span class="n">e</span><span class="o">|</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">to_string</span><span class="p">())</span><span class="o">?</span><span class="p">;</span>
+<span class="w">    </span><span class="nb">Ok</span><span class="p">(</span><span class="s">&quot;saved&quot;</span><span class="p">.</span><span class="n">to_string</span><span class="p">())</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>前端：</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="nx">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">invoke</span><span class="p">(</span><span class="s1">&#39;save_note&#39;</span><span class="p">,</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">content</span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;# Hello&#39;</span><span class="w"> </span><span class="p">});</span>
+<span class="w">    </span><span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="nx">result</span><span class="p">);</span><span class="w"> </span><span class="c1">// &quot;saved&quot;</span>
+<span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">error</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="s1">&#39;保存失败：&#39;</span><span class="p">,</span><span class="w"> </span><span class="nx">error</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="event">
+<h3>10.3.2 Event 模式（发布-订阅）<a class="headerlink" href="#event" title="Link to this heading">#</a></h3>
+<p>适用于后端主动推送、双向通知的场景：</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>前端 (JS)                          后端 (Rust)
+   │                                   │
+   │  listen(&#39;download-progress&#39;)      │
+   │  ┌──────────────────────────┐     │
+   │  │ 注册监听器               │     │
+   │  └──────────────────────────┘     │
+   │                                   │
+   │       emit(&#39;download-progress&#39;,   │
+   │            { percent: 30 })       │
+   │◄──────────────────────────────────│
+   │                                   │
+   │       emit(&#39;download-progress&#39;,   │
+   │            { percent: 70 })       │
+   │◄──────────────────────────────────│
+   │                                   │
+   │       emit(&#39;download-progress&#39;,   │
+   │            { percent: 100 })      │
+   │◄──────────────────────────────────│
+</pre></div>
+</div>
+<p><strong>Rust 端发送事件：</strong></p>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">use</span><span class="w"> </span><span class="n">tauri</span><span class="p">::</span><span class="n">Emitter</span><span class="p">;</span>
+
+<span class="cp">#[tauri::command]</span>
+<span class="k">async</span><span class="w"> </span><span class="k">fn</span><span class="w"> </span><span class="nf">download_file</span><span class="p">(</span><span class="n">app</span><span class="p">:</span><span class="w"> </span><span class="nc">tauri</span><span class="p">::</span><span class="n">AppHandle</span><span class="p">,</span><span class="w"> </span><span class="n">url</span><span class="p">:</span><span class="w"> </span><span class="nb">String</span><span class="p">)</span><span class="w"> </span><span class="p">-&gt;</span><span class="w"> </span><span class="nb">Result</span><span class="o">&lt;</span><span class="p">(),</span><span class="w"> </span><span class="nb">String</span><span class="o">&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="k">in</span><span class="w"> </span><span class="p">(</span><span class="mi">0</span><span class="o">..=</span><span class="mi">100</span><span class="p">).</span><span class="n">step_by</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">// 模拟下载进度</span>
+<span class="w">        </span><span class="n">tokio</span><span class="p">::</span><span class="n">time</span><span class="p">::</span><span class="n">sleep</span><span class="p">(</span><span class="n">std</span><span class="p">::</span><span class="n">time</span><span class="p">::</span><span class="n">Duration</span><span class="p">::</span><span class="n">from_millis</span><span class="p">(</span><span class="mi">200</span><span class="p">)).</span><span class="k">await</span><span class="p">;</span>
+<span class="w">        </span><span class="n">app</span><span class="p">.</span><span class="n">emit</span><span class="p">(</span><span class="s">&quot;download-progress&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">serde_json</span><span class="p">::</span><span class="n">json</span><span class="o">!</span><span class="p">({</span>
+<span class="w">            </span><span class="s">&quot;percent&quot;</span><span class="p">:</span><span class="w"> </span><span class="nc">i</span>
+<span class="w">        </span><span class="p">})).</span><span class="n">map_err</span><span class="p">(</span><span class="o">|</span><span class="n">e</span><span class="o">|</span><span class="w"> </span><span class="n">e</span><span class="p">.</span><span class="n">to_string</span><span class="p">())</span><span class="o">?</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="nb">Ok</span><span class="p">(())</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>前端监听事件：</strong></p>
+<div class="highlight-javascript notranslate"><div class="highlight"><pre><span></span><span class="k">import</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">listen</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="kr">from</span><span class="w"> </span><span class="s1">&#39;@tauri-apps/api/event&#39;</span><span class="p">;</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">unlisten</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">listen</span><span class="p">(</span><span class="s1">&#39;download-progress&#39;</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="nx">event</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">percent</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">event</span><span class="p">.</span><span class="nx">payload</span><span class="p">;</span>
+<span class="w">    </span><span class="nx">updateProgressBar</span><span class="p">(</span><span class="nx">percent</span><span class="p">);</span>
+<span class="p">});</span>
+
+<span class="c1">// 不再需要时取消监听</span>
+<span class="c1">// unlisten();</span>
+</pre></div>
+</div>
+</section>
+<section id="id4">
+<h3>10.3.3 两种模式对比<a class="headerlink" href="#id4" title="Link to this heading">#</a></h3>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>维度</p></th>
+<th class="head"><p>Command (invoke)</p></th>
+<th class="head"><p>Event (emit/listen)</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>方向</p></td>
+<td><p>前端 → 后端 → 前端</p></td>
+<td><p>双向</p></td>
+</tr>
+<tr class="row-odd"><td><p>模式</p></td>
+<td><p>请求-响应</p></td>
+<td><p>发布-订阅</p></td>
+</tr>
+<tr class="row-even"><td><p>返回值</p></td>
+<td><p>有（Result）</p></td>
+<td><p>无（fire-and-forget）</p></td>
+</tr>
+<tr class="row-odd"><td><p>适用场景</p></td>
+<td><p>CRUD 操作、查询</p></td>
+<td><p>进度通知、状态变更、实时推送</p></td>
+</tr>
+<tr class="row-even"><td><p>类比</p></td>
+<td><p>REST API</p></td>
+<td><p>WebSocket / SSE</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id5">
+<h2>10.4 Tauri 的安全模型<a class="headerlink" href="#id5" title="Link to this heading">#</a></h2>
+<p>安全是 Tauri 的核心设计理念之一。</p>
+<section id="capabilities">
+<h3>10.4.1 能力系统（Capabilities）<a class="headerlink" href="#capabilities" title="Link to this heading">#</a></h3>
+<p>Tauri 2.0 引入了声明式的能力系统：</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="c1">// src-tauri/capabilities/default.json</span>
+<span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;identifier&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;default&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;description&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;默认能力集&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;windows&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;main&quot;</span><span class="p">],</span>
+<span class="w">  </span><span class="nt">&quot;permissions&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="s2">&quot;core:default&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">&quot;shell:allow-open&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">&quot;fs:allow-read-text-file&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="s2">&quot;fs:allow-write-text-file&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;identifier&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;fs:scope&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="nt">&quot;allow&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">        </span><span class="s2">&quot;$APPDATA/**&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="s2">&quot;$DOCUMENT/**&quot;</span>
+<span class="w">      </span><span class="p">]</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="id6">
+<h3>10.4.2 安全层次<a class="headerlink" href="#id6" title="Link to this heading">#</a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>┌─────────────────────────────────────────────┐
+│            Tauri 安全模型（四层防御）          │
+│                                             │
+│  Layer 4: CSP（内容安全策略）                 │
+│  ┌─────────────────────────────────────┐    │
+│  │ 限制 JS 可加载的资源来源              │    │
+│  └─────────────────────────────────────┘    │
+│                                             │
+│  Layer 3: Capabilities（能力声明）            │
+│  ┌─────────────────────────────────────┐    │
+│  │ 声明窗口可使用的 API 权限             │    │
+│  └─────────────────────────────────────┘    │
+│                                             │
+│  Layer 2: IPC 过滤                          │
+│  ┌─────────────────────────────────────┐    │
+│  │ 只有注册的命令才能被调用              │    │
+│  └─────────────────────────────────────┘    │
+│                                             │
+│  Layer 1: 进程隔离                          │
+│  ┌─────────────────────────────────────┐    │
+│  │ WebView 无法直接访问系统资源          │    │
+│  └─────────────────────────────────────┘    │
+└─────────────────────────────────────────────┘
+</pre></div>
+</div>
+</section>
+<section id="electron">
+<h3>10.4.3 与 Electron 安全对比<a class="headerlink" href="#electron" title="Link to this heading">#</a></h3>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>维度</p></th>
+<th class="head"><p>Electron</p></th>
+<th class="head"><p>Tauri</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>默认权限</p></td>
+<td><p>Node.js 拥有完整系统权限</p></td>
+<td><p>WebView 默认无权限</p></td>
+</tr>
+<tr class="row-odd"><td><p>权限控制</p></td>
+<td><p>需手动配置 contextIsolation</p></td>
+<td><p>声明式 Capabilities</p></td>
+</tr>
+<tr class="row-even"><td><p>远程代码</p></td>
+<td><p>可通过 <code class="docutils literal notranslate"><span class="pre">require()</span></code> 执行任意代码</p></td>
+<td><p>CSP 严格限制</p></td>
+</tr>
+<tr class="row-odd"><td><p>文件访问</p></td>
+<td><p>默认可访问整个文件系统</p></td>
+<td><p>需声明 scope 范围</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id7">
+<h2>10.5 Tauri 应用的生命周期<a class="headerlink" href="#id7" title="Link to this heading">#</a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>┌──────────────────────────────────────────────────┐
+│              Tauri 应用生命周期                     │
+│                                                  │
+│  ┌─────────┐                                     │
+│  │  启动    │ main() → tauri::Builder             │
+│  └────┬────┘                                     │
+│       ▼                                          │
+│  ┌─────────┐                                     │
+│  │  setup   │ .setup(|app| { ... })              │
+│  │  初始化   │ 注册插件、初始化状态、创建窗口        │
+│  └────┬────┘                                     │
+│       ▼                                          │
+│  ┌─────────┐                                     │
+│  │  运行    │ 事件循环（Event Loop）               │
+│  │         │ 处理 IPC、窗口事件、系统事件           │
+│  └────┬────┘                                     │
+│       ▼                                          │
+│  ┌─────────┐                                     │
+│  │  退出    │ on_window_event(CloseRequested)     │
+│  │         │ 清理资源、保存状态                    │
+│  └─────────┘                                     │
+└──────────────────────────────────────────────────┘
+</pre></div>
+</div>
+<section id="id8">
+<h3>生命周期钩子<a class="headerlink" href="#id8" title="Link to this heading">#</a></h3>
+<div class="highlight-rust notranslate"><div class="highlight"><pre><span></span><span class="k">fn</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="n">tauri</span><span class="p">::</span><span class="n">Builder</span><span class="p">::</span><span class="n">default</span><span class="p">()</span>
+<span class="w">        </span><span class="c1">// 1. setup — 应用初始化</span>
+<span class="w">        </span><span class="p">.</span><span class="n">setup</span><span class="p">(</span><span class="o">|</span><span class="n">app</span><span class="o">|</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;✅ 应用初始化&quot;</span><span class="p">);</span>
+
+<span class="w">            </span><span class="c1">// 获取应用数据目录</span>
+<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">app_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">app</span><span class="p">.</span><span class="n">path</span><span class="p">().</span><span class="n">app_data_dir</span><span class="p">()</span>
+<span class="w">                </span><span class="p">.</span><span class="n">expect</span><span class="p">(</span><span class="s">&quot;无法获取应用数据目录&quot;</span><span class="p">);</span>
+<span class="w">            </span><span class="n">std</span><span class="p">::</span><span class="n">fs</span><span class="p">::</span><span class="n">create_dir_all</span><span class="p">(</span><span class="o">&amp;</span><span class="n">app_dir</span><span class="p">).</span><span class="n">ok</span><span class="p">();</span>
+
+<span class="w">            </span><span class="c1">// 创建额外窗口</span>
+<span class="w">            </span><span class="kd">let</span><span class="w"> </span><span class="n">_settings_window</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">tauri</span><span class="p">::</span><span class="n">WebviewWindowBuilder</span><span class="p">::</span><span class="n">new</span><span class="p">(</span>
+<span class="w">                </span><span class="n">app</span><span class="p">,</span>
+<span class="w">                </span><span class="s">&quot;settings&quot;</span><span class="p">,</span>
+<span class="w">                </span><span class="n">tauri</span><span class="p">::</span><span class="n">WebviewUrl</span><span class="p">::</span><span class="n">App</span><span class="p">(</span><span class="s">&quot;settings.html&quot;</span><span class="p">.</span><span class="n">into</span><span class="p">()),</span>
+<span class="w">            </span><span class="p">)</span>
+<span class="w">            </span><span class="p">.</span><span class="n">title</span><span class="p">(</span><span class="s">&quot;设置&quot;</span><span class="p">)</span>
+<span class="w">            </span><span class="p">.</span><span class="n">inner_size</span><span class="p">(</span><span class="mf">600.0</span><span class="p">,</span><span class="w"> </span><span class="mf">400.0</span><span class="p">)</span>
+<span class="w">            </span><span class="p">.</span><span class="n">build</span><span class="p">()</span><span class="o">?</span><span class="p">;</span>
+
+<span class="w">            </span><span class="nb">Ok</span><span class="p">(())</span>
+<span class="w">        </span><span class="p">})</span>
+<span class="w">        </span><span class="c1">// 2. on_window_event — 窗口事件</span>
+<span class="w">        </span><span class="p">.</span><span class="n">on_window_event</span><span class="p">(</span><span class="o">|</span><span class="n">window</span><span class="p">,</span><span class="w"> </span><span class="n">event</span><span class="o">|</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">match</span><span class="w"> </span><span class="n">event</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="n">tauri</span><span class="p">::</span><span class="n">WindowEvent</span><span class="p">::</span><span class="n">CloseRequested</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="n">api</span><span class="p">,</span><span class="w"> </span><span class="o">..</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;窗口 {} 请求关闭&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">window</span><span class="p">.</span><span class="n">label</span><span class="p">());</span>
+<span class="w">                    </span><span class="c1">// 可以阻止关闭：api.prevent_close();</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">                </span><span class="n">tauri</span><span class="p">::</span><span class="n">WindowEvent</span><span class="p">::</span><span class="n">Focused</span><span class="p">(</span><span class="n">focused</span><span class="p">)</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                    </span><span class="fm">println!</span><span class="p">(</span><span class="s">&quot;窗口 {} 焦点: {}&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">window</span><span class="p">.</span><span class="n">label</span><span class="p">(),</span><span class="w"> </span><span class="n">focused</span><span class="p">);</span>
+<span class="w">                </span><span class="p">}</span>
+<span class="w">                </span><span class="n">_</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="p">{}</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">})</span>
+<span class="w">        </span><span class="p">.</span><span class="n">run</span><span class="p">(</span><span class="n">tauri</span><span class="p">::</span><span class="n">generate_context</span><span class="o">!</span><span class="p">())</span>
+<span class="w">        </span><span class="p">.</span><span class="n">expect</span><span class="p">(</span><span class="s">&quot;error while running tauri application&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="id9">
+<h2>10.6 Tauri 项目结构深度解析<a class="headerlink" href="#id9" title="Link to this heading">#</a></h2>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>hive/
+├── src-tauri/                    # Rust 后端
+│   ├── Cargo.toml                # Rust 依赖管理
+│   ├── tauri.conf.json           # Tauri 核心配置
+│   ├── capabilities/             # 能力声明（安全策略）
+│   │   └── default.json
+│   ├── icons/                    # 应用图标
+│   │   ├── icon.ico
+│   │   ├── icon.png
+│   │   └── icon.icns
+│   ├── src/
+│   │   ├── main.rs               # 入口（桌面端）
+│   │   ├── lib.rs                # 核心库（可被测试引用）
+│   │   ├── commands/             # IPC 命令模块
+│   │   │   ├── mod.rs
+│   │   │   ├── notes.rs
+│   │   │   └── settings.rs
+│   │   ├── models/               # 数据模型
+│   │   │   ├── mod.rs
+│   │   │   └── note.rs
+│   │   └── state.rs              # 全局状态
+│   └── build.rs                  # 构建脚本
+│
+├── src/                          # 前端代码
+│   ├── index.html
+│   ├── main.js                   # 或 main.ts
+│   ├── styles.css
+│   ├── components/
+│   └── pages/
+│
+├── package.json                  # 前端依赖
+└── vite.config.js                # 前端构建配置
+</pre></div>
+</div>
+<section id="tauri-conf-json">
+<h3>tauri.conf.json 核心配置<a class="headerlink" href="#tauri-conf-json" title="Link to this heading">#</a></h3>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;productName&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Hive&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;0.1.0&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;identifier&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;com.example.hive&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;build&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;frontendDist&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;../dist&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;devUrl&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;http://localhost:5173&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;beforeDevCommand&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;npm run dev&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;beforeBuildCommand&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;npm run build&quot;</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;app&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;windows&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">      </span><span class="p">{</span>
+<span class="w">        </span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;main&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;title&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Hive&quot;</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;width&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">1024</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;height&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">768</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;resizable&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">        </span><span class="nt">&quot;fullscreen&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span>
+<span class="w">      </span><span class="p">}</span>
+<span class="w">    </span><span class="p">],</span>
+<span class="w">    </span><span class="nt">&quot;security&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">      </span><span class="nt">&quot;csp&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;default-src &#39;self&#39;; script-src &#39;self&#39;&quot;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">  </span><span class="p">},</span>
+<span class="w">  </span><span class="nt">&quot;bundle&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;active&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;targets&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;all&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;icon&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">      </span><span class="s2">&quot;icons/32x32.png&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="s2">&quot;icons/128x128.png&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="s2">&quot;icons/icon.icns&quot;</span><span class="p">,</span>
+<span class="w">      </span><span class="s2">&quot;icons/icon.ico&quot;</span>
+<span class="w">    </span><span class="p">]</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="c-java-tauri">
+<h2>10.7 从 C++/Java 架构师视角看 Tauri<a class="headerlink" href="#c-java-tauri" title="Link to this heading">#</a></h2>
+<section id="c-qt">
+<h3>与 C++ Qt 对比<a class="headerlink" href="#c-qt" title="Link to this heading">#</a></h3>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>维度</p></th>
+<th class="head"><p>Qt</p></th>
+<th class="head"><p>Tauri</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>UI 技术</p></td>
+<td><p>QML / Widgets (C++)</p></td>
+<td><p>HTML/CSS/JS</p></td>
+</tr>
+<tr class="row-odd"><td><p>后端语言</p></td>
+<td><p>C++</p></td>
+<td><p>Rust</p></td>
+</tr>
+<tr class="row-even"><td><p>信号-槽</p></td>
+<td><p>Qt Signal/Slot</p></td>
+<td><p>Command + Event</p></td>
+</tr>
+<tr class="row-odd"><td><p>跨平台</p></td>
+<td><p>编译时适配</p></td>
+<td><p>运行时 WebView 适配</p></td>
+</tr>
+<tr class="row-even"><td><p>包管理</p></td>
+<td><p>qmake / CMake</p></td>
+<td><p>Cargo + npm</p></td>
+</tr>
+<tr class="row-odd"><td><p>学习曲线</p></td>
+<td><p>陡峭（MOC、QObject 体系）</p></td>
+<td><p>中等（Web 前端 + Rust）</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="java-swing-javafx">
+<h3>与 Java Swing/JavaFX 对比<a class="headerlink" href="#java-swing-javafx" title="Link to this heading">#</a></h3>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>维度</p></th>
+<th class="head"><p>JavaFX</p></th>
+<th class="head"><p>Tauri</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>UI 技术</p></td>
+<td><p>FXML / CSS</p></td>
+<td><p>HTML/CSS/JS</p></td>
+</tr>
+<tr class="row-odd"><td><p>后端语言</p></td>
+<td><p>Java</p></td>
+<td><p>Rust</p></td>
+</tr>
+<tr class="row-even"><td><p>事件模型</p></td>
+<td><p>EventHandler</p></td>
+<td><p>Command + Event</p></td>
+</tr>
+<tr class="row-odd"><td><p>打包</p></td>
+<td><p>jlink / jpackage (~50 MB+)</p></td>
+<td><p>tauri build (~5 MB)</p></td>
+</tr>
+<tr class="row-even"><td><p>性能</p></td>
+<td><p>JVM 启动慢</p></td>
+<td><p>原生启动快</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</section>
+<hr class="docutils" />
+<section id="hive">
+<h2>10.8 Hive 项目架构设计<a class="headerlink" href="#hive" title="Link to this heading">#</a></h2>
+<p>在接下来的章节中，我们将逐步构建 Hive 项目。这里先给出整体架构：</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>┌─────────────────────────────────────────────────────┐
+│                    Hive 架构                         │
+│                                                     │
+│  ┌─────────────────────────────────────────────────┐│
+│  │                 前端 (WebView)                   ││
+│  │                                                 ││
+│  │  ┌──────┐  ┌──────┐  ┌──────┐  ┌──────────┐   ││
+│  │  │ 笔记  │  │ 聊天  │  │ 设置  │  │ 插件面板  │   ││
+│  │  │ 编辑器│  │ 窗口  │  │ 页面  │  │          │   ││
+│  │  └──┬───┘  └──┬───┘  └──┬───┘  └────┬─────┘   ││
+│  │     │         │         │            │         ││
+│  │     └─────────┴─────────┴────────────┘         ││
+│  │                    │ invoke() / listen()        ││
+│  └────────────────────┼───────────────────────────┘│
+│                       │ IPC Bridge                  │
+│  ┌────────────────────┼───────────────────────────┐│
+│  │                 后端 (Rust)                      ││
+│  │                    │                            ││
+│  │  ┌────────────┐  ┌┴───────────┐  ┌──────────┐ ││
+│  │  │ 命令处理器  │  │ 事件分发器  │  │ 插件管理器│ ││
+│  │  └─────┬──────┘  └─────┬──────┘  └────┬─────┘ ││
+│  │        │               │               │       ││
+│  │  ┌─────┴───────────────┴───────────────┴─────┐ ││
+│  │  │              服务层 (Service)               │ ││
+│  │  │  NoteService  ChatService  ConfigService   │ ││
+│  │  └─────────────────┬─────────────────────────┘ ││
+│  │                    │                            ││
+│  │  ┌─────────────────┴─────────────────────────┐ ││
+│  │  │              存储层 (Storage)               │ ││
+│  │  │  SQLite    FileSystem    HTTP Client        │ ││
+│  │  └───────────────────────────────────────────┘ ││
+│  └────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────┘
+</pre></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="id10">
+<h2>10.9 小结<a class="headerlink" href="#id10" title="Link to this heading">#</a></h2>
+<p>本章我们从宏观视角了解了 Tauri 的架构设计：</p>
+<section id="id11">
+<h3>核心知识点<a class="headerlink" href="#id11" title="Link to this heading">#</a></h3>
+<div class="pst-scrollable-table-container"><table class="table">
+<thead>
+<tr class="row-odd"><th class="head"><p>概念</p></th>
+<th class="head"><p>要点</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>双进程模型</strong></p></td>
+<td><p>Core Process (Rust) + WebView Process (系统原生)</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>IPC 通信</strong></p></td>
+<td><p>Command（请求-响应）+ Event（发布-订阅）</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>安全模型</strong></p></td>
+<td><p>四层防御：进程隔离 → IPC 过滤 → Capabilities → CSP</p></td>
+</tr>
+<tr class="row-odd"><td><p><strong>生命周期</strong></p></td>
+<td><p>setup → 事件循环 → 退出清理</p></td>
+</tr>
+<tr class="row-even"><td><p><strong>项目结构</strong></p></td>
+<td><p>src-tauri/ (Rust) + src/ (前端) + tauri.conf.json</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<section id="id12">
+<h3>Tauri 设计哲学<a class="headerlink" href="#id12" title="Link to this heading">#</a></h3>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>┌────────────────────────────────────────┐
+│         Tauri 设计哲学                  │
+│                                        │
+│  🔒 安全优先 — 最小权限原则             │
+│  📦 轻量打包 — 复用系统 WebView         │
+│  🦀 性能保障 — Rust 零成本抽象          │
+│  🌐 Web 生态 — 复用前端技术栈           │
+│  🔌 可扩展   — 插件系统                 │
+└────────────────────────────────────────┘
+</pre></div>
+</div>
+</section>
+<section id="id13">
+<h3>下一章预告<a class="headerlink" href="#id13" title="Link to this heading">#</a></h3>
+<p>第十一章我们将深入 <strong>前后端通信</strong>，详细学习 <code class="docutils literal notranslate"><span class="pre">#[tauri::command]</span></code> 的各种用法、参数传递、状态管理，以及事件系统的高级模式。</p>
+<hr class="docutils" />
+<blockquote>
+<div><p><strong>扩展阅读</strong></p>
+<ul class="simple">
+<li><p><a class="reference external" href="https://v2.tauri.app/concept/">Tauri 官方架构文档</a></p></li>
+<li><p><a class="reference external" href="https://v2.tauri.app/security/">Tauri 安全模型</a></p></li>
+<li><p><a class="reference external" href="https://github.com/nicehash/nicehash-benchmark">Tauri vs Electron 性能对比</a></p></li>
+</ul>
+</div></blockquote>
+</section>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="ch09.html"
+       title="上一页">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">上一页</p>
+        <p class="prev-next-title">第九章 Rust 实战小项目：CLI 聊天室</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="ch11.html"
+       title="下一页">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">下一页</p>
+        <p class="prev-next-title">第十一章 前后端通信：IPC 深度解析</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> 目录
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#tauri-electron">10.1 Tauri 与 Electron：架构对比</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id1">关键差异</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id2">10.2 Tauri 的双进程模型</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#core-process">10.2.1 Core Process（核心进程）</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#webview-process-webview">10.2.2 WebView Process（WebView 进程）</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id3">10.2.3 为什么是双进程？</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ipc">10.3 IPC 通信机制概览</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#command">10.3.1 Command 模式（请求-响应）</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#event">10.3.2 Event 模式（发布-订阅）</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id4">10.3.3 两种模式对比</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id5">10.4 Tauri 的安全模型</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#capabilities">10.4.1 能力系统（Capabilities）</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id6">10.4.2 安全层次</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#electron">10.4.3 与 Electron 安全对比</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id7">10.5 Tauri 应用的生命周期</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id8">生命周期钩子</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id9">10.6 Tauri 项目结构深度解析</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#tauri-conf-json">tauri.conf.json 核心配置</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#c-java-tauri">10.7 从 C++/Java 架构师视角看 Tauri</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#c-qt">与 C++ Qt 对比</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#java-swing-javafx">与 Java Swing/JavaFX 对比</a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#hive">10.8 Hive 项目架构设计</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#id10">10.9 小结</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id11">核心知识点</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id12">Tauri 设计哲学</a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#id13">下一章预告</a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+作者： Walter Fan
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2026, Walter Fan.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
